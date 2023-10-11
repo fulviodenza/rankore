@@ -42,7 +42,6 @@ async fn main() {
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
-
     let framework = StandardFramework::new()
         .configure(|c| {
             c.dynamic_prefix(|_, _msg| Box::pin(async move { Some({ "!" }.to_string()) }))

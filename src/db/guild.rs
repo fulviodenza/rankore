@@ -1,30 +1,43 @@
-use std::sync::RwLock;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 // TODO: Replace this with an actual database
 pub struct Guild {
-    prefix: RwLock<String>,
+    prefix_map: Arc<RwLock<HashMap<u64, String>>>,
 }
 
 pub trait GuildRepo {
     fn new() -> Self;
-    fn set_prefix(&mut self, prefix: String);
-    fn get_prefix(&self) -> String;
+    fn set_prefix(&mut self, guild_id: u64, prefix: &str);
+    fn get_prefix(&self, guild_id: u64) -> String;
 }
 
 impl GuildRepo for Guild {
     fn new() -> Self {
         Guild {
-            prefix: RwLock::new("!".to_string()),
+            prefix_map: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    fn set_prefix(&mut self, prefix: String) {
-        let mut data = self.prefix.write().expect("Failed to acquire write lock");
-        *data = prefix;
-        println!("State changed to {:?}", *data)
+    fn set_prefix(&mut self, guild_id: u64, prefix: &str) {
+        {
+            let locked_data = self.prefix_map.clone();
+            let mut data = locked_data.write().unwrap();
+            data.insert(guild_id, prefix.to_string());
+            println!(
+                "State prefix changed to {:?} for guild: {:?}",
+                prefix, guild_id
+            )
+        }
     }
 
-    fn get_prefix(&self) -> String {
-        let data = self.prefix.read().expect("Failed to acquire read lock");
-        data.clone()
+    fn get_prefix(&self, guild_id: u64) -> String {
+        let locked_data = self.prefix_map.clone();
+        let data = locked_data.read().unwrap();
+        match data.get(&guild_id) {
+            Some(value) => format!("Value: {}", value),
+            None => "Key not found.".to_string(),
+        }
     }
 }
