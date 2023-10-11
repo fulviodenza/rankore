@@ -1,7 +1,8 @@
-use std::env;
+use std::{env, sync::Mutex};
 
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use async_trait::async_trait;
+use db::guild::{Guild, GuildRepo};
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
     model::prelude::Ready,
@@ -10,22 +11,17 @@ use serenity::{
 };
 
 mod commands;
+mod db;
 
 #[group]
 #[commands(set_prefix)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
-    pub prefix: String,
+    guild: Mutex<Guild>,
 }
 
 pub struct GlobalState {}
-
-impl GlobalStateInner {
-    fn set_prefix(&mut self, prefix: String) {
-        self.prefix = prefix
-    }
-}
 
 impl TypeMapKey for GlobalState {
     type Value = GlobalStateInner;
@@ -48,13 +44,15 @@ async fn main() {
         | GatewayIntents::MESSAGE_CONTENT;
 
     let framework = StandardFramework::new()
-        .configure(|c| c.prefix("!"))
+        .configure(|c| {
+            c.dynamic_prefix(|_, _msg| Box::pin(async move { Some({ "!" }.to_string()) }))
+        })
         .group(&BOT_GROUP);
     let mut client = Client::builder(token, intents)
         .event_handler(Handler)
         .framework(framework)
         .type_map_insert::<GlobalState>(GlobalStateInner {
-            prefix: "".to_string(),
+            guild: Mutex::new(Guild::new()),
         })
         .await
         .expect("Error creating client");

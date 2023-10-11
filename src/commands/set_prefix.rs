@@ -1,22 +1,20 @@
 use serenity::framework::standard::macros::command;
 
-use serenity::framework::standard::CommandResult;
+use serenity::framework::standard::{Args, CommandResult};
 use serenity::{model::prelude::Message, prelude::Context};
 
+use crate::db::guild::GuildRepo;
 use crate::GlobalState;
 
 #[command]
-async fn set_prefix(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut x = ctx.data.write().await;
-    let x = x.get_mut::<GlobalState>().unwrap();
-    let new_prefix = msg.content.split(' ').collect::<Vec<_>>();
-    let new_prefix = new_prefix.get(1).unwrap();
+async fn set_prefix(ctx: &Context, _msg: &Message, args: Args) -> CommandResult {
+    let mut cloned_args = args.clone();
+    let new_prefix = cloned_args.single_quoted::<String>().unwrap_or_default();
 
-    x.set_prefix(new_prefix.to_string());
-    let outgoing_msg = format!("New message set: {:?}", new_prefix);
-    if let Err(why) = msg.channel_id.say(&ctx, outgoing_msg).await {
-        println!("Error sending message :{:?}", why)
+    let data_read = ctx.data.read().await;
+    if let Some(global_state) = data_read.get::<GlobalState>() {
+        let mut global_state = global_state.guild.lock().expect("Failed to aquire mutex");
+        global_state.set_prefix(new_prefix);
     }
-
     Ok(())
 }
