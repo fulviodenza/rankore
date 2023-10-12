@@ -1,8 +1,14 @@
-use std::{env, sync::Mutex};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use async_trait::async_trait;
-use db::guild::{GuildRepo, Guilds};
+use db::{
+    guild::{GuildRepo, Guilds},
+    users::{Users, UsersRepo},
+};
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
     model::prelude::{Message, Ready},
@@ -19,7 +25,8 @@ mod services;
 pub struct Bot;
 
 pub struct GlobalStateInner {
-    guild: Mutex<Guilds>,
+    guild: Arc<Mutex<Guilds>>,
+    users: Arc<Mutex<Users>>,
 }
 
 pub struct GlobalState {}
@@ -32,7 +39,7 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        crate::services::message::handle_message(ctx, msg)
+        crate::services::message::handle_message(ctx, msg).await
     }
     async fn ready(&self, _: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
@@ -63,8 +70,6 @@ async fn main() {
                             .get_prefix(guild_id),
                     );
 
-                    println!("Arrived here with prefix: {:?}", prefix);
-
                     match prefix {
                         Some(s) => {
                             if s == "Key not found." {
@@ -87,7 +92,8 @@ async fn main() {
         .event_handler(Handler)
         .framework(framework)
         .type_map_insert::<GlobalState>(GlobalStateInner {
-            guild: Mutex::new(Guilds::new()),
+            guild: Arc::new(Mutex::new(Guilds::new())),
+            users: Arc::new(Mutex::new(Users::new())),
         })
         .await
         .expect("Error creating client");
