@@ -19,8 +19,11 @@ pub async fn handle_message(ctx: Context, msg: Message) {
                 id: user_id,
                 score: user_mut.score + 1,
             });
-            println!("{:?}", user_mut.score + 1);
-            println!("user updated {:?}", global_state.get_user(user_id));
+            println!(
+                "user updated {:?} with score {:?}",
+                global_state.get_user(user_id),
+                user_mut.score + 1
+            );
         }
     }
 }

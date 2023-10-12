@@ -33,10 +33,6 @@ impl UsersRepo for Users {
             Some(u) => u.clone(),
             None => User { id, score: 0 },
         }
-        // User {
-        //     id: user.unwrap().id,
-        //     score: user.unwrap().score,
-        // }
     }
     fn insert_user(&mut self, user: User) -> bool {
         let user_id = user.id;
