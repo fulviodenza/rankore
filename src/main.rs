@@ -11,7 +11,10 @@ use db::{
 };
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
-    model::prelude::{Message, Ready},
+    model::{
+        prelude::{Message, Ready},
+        voice::VoiceState,
+    },
     prelude::{Context, EventHandler, GatewayIntents, TypeMapKey},
     Client,
 };
@@ -41,6 +44,12 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         crate::services::message::handle_message(ctx, msg).await
     }
+
+    async fn voice_state_update(&self, ctx: Context, state: VoiceState) {
+        println!("Hello");
+        crate::services::message::handle_voice(ctx, state).await
+    }
+
     async fn ready(&self, _: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
     }
@@ -52,7 +61,8 @@ async fn main() {
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
-        | GatewayIntents::MESSAGE_CONTENT;
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILD_VOICE_STATES;
     let framework = StandardFramework::new()
         .configure(|c| {
             c.dynamic_prefix(|ctx, msg| {
