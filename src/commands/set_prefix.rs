@@ -13,7 +13,7 @@ async fn set_prefix(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let mut global_state = global_state.guild.lock().expect("Failed to aquire mutex");
+        let global_state = global_state.guild.lock().expect("Failed to aquire mutex");
         global_state.set_prefix(
             if let Some(guild_id) = msg.guild_id {
                 guild_id.0

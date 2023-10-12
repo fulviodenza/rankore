@@ -44,7 +44,45 @@ async fn main() {
         | GatewayIntents::MESSAGE_CONTENT;
     let framework = StandardFramework::new()
         .configure(|c| {
-            c.dynamic_prefix(|_, _msg| Box::pin(async move { Some({ "!" }.to_string()) }))
+            c.dynamic_prefix(|ctx, msg| {
+                Box::pin(async move {
+                    let guild_id = msg.guild_id.unwrap().0;
+                    let data = ctx.data.read().await;
+                    let global_state = data.get::<GlobalState>();
+
+                    let prefix = Some(
+                        global_state
+                            .unwrap()
+                            .guild
+                            .lock()
+                            .unwrap()
+                            .get_prefix(guild_id),
+                    );
+
+                    println!("Arrived here with prefix: {:?}", prefix);
+
+                    match prefix {
+                        Some(s) => {
+                            // from the map we get a string "Key not found." if the key
+                            // is not found, while we get a "Value: !" for example which
+                            // we need to split and take only the last character "!"
+                            if s == "Key not found." {
+                                println!("Using ! as prefix");
+                                Some("!".to_string())
+                            } else {
+                                let clean_prefix: Vec<&str> = s.split(' ').collect();
+                                let clean_prefix = clean_prefix.get(1);
+                                println!("Using {:?} as prefix", clean_prefix);
+                                clean_prefix.map(|&double_ref_str| double_ref_str.to_string())
+                            }
+                        }
+                        None => {
+                            println!("Using ! as prefix");
+                            Some("!".to_string())
+                        }
+                    }
+                })
+            })
         })
         .group(&BOT_GROUP);
     let mut client = Client::builder(token, intents)
