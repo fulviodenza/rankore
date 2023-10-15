@@ -15,16 +15,18 @@ pub async fn handle_message(ctx: Context, msg: Message) {
 
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let mut global_state = global_state.users.lock().expect("Failed to aquire mutex");
-        let mut user = &global_state.get_user(user_id);
+        let mut global_state = global_state.users.lock().await;
+        let mut user = global_state.get_user(user_id).await;
         let user_mut = user.borrow_mut().clone();
-        global_state.update_user(User {
-            id: user_id,
-            score: user_mut.score + 1,
-        });
+        global_state
+            .update_user(User {
+                id: user_id,
+                score: user_mut.score + 1,
+            })
+            .await;
         println!(
             "user updated {:?} with score {:?}",
-            global_state.get_user(user_id),
+            global_state.get_user(user_id).await,
             user_mut.score + 1
         );
     }
@@ -44,16 +46,18 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
 async fn increase_score(ctx: Context, user_id: u64) {
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let mut global_state = global_state.users.lock().expect("Failed to aquire mutex");
-        let mut user = &global_state.get_user(user_id);
+        let mut global_state = global_state.users.lock().await;
+        let mut user = global_state.get_user(user_id).await;
         let user_mut = user.borrow_mut().clone();
-        global_state.update_user(User {
-            id: user_id,
-            score: user_mut.score + 1,
-        });
+        global_state
+            .update_user(User {
+                id: user_id,
+                score: user_mut.score + 1,
+            })
+            .await;
         println!(
             "user updated {:?} with score {:?}",
-            global_state.get_user(user_id),
+            global_state.get_user(user_id).await,
             user_mut.score + 1
         );
     }

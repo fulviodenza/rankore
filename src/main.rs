@@ -1,7 +1,4 @@
-use std::{
-    env,
-    sync::{Arc, Mutex},
-};
+use std::{env, sync::Arc};
 
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use async_trait::async_trait;
@@ -18,6 +15,7 @@ use serenity::{
     prelude::{Context, EventHandler, GatewayIntents, TypeMapKey},
     Client,
 };
+use tokio::sync::Mutex;
 
 mod commands;
 mod db;
@@ -71,22 +69,19 @@ async fn main() {
                     let data = ctx.data.read().await;
                     let global_state = data.get::<GlobalState>();
 
-                    let prefix = Some(
-                        global_state
-                            .unwrap()
-                            .guild
-                            .lock()
-                            .unwrap()
-                            .get_prefix(guild_id),
-                    );
+                    let guild = global_state.unwrap().guild.lock().await;
+                    let prefix = guild.get_prefix(guild_id).await;
+
+                    let prefix = Some(prefix);
 
                     match prefix {
                         Some(s) => {
-                            if s == "Key not found." {
+                            let val = s;
+                            if val == "Key not found." {
                                 println!("Using ! as prefix");
                                 Some("!".to_string())
                             } else {
-                                Some(s)
+                                Some(val)
                             }
                         }
                         None => {

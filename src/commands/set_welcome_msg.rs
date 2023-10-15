@@ -13,15 +13,17 @@ async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandRes
 
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let global_state = global_state.guild.lock().expect("Failed to aquire mutex");
-        global_state.set_welcome_msg(
-            if let Some(guild_id) = msg.guild_id {
-                guild_id.0
-            } else {
-                0
-            },
-            &welcome_msg,
-        );
+        let global_state = global_state.guild.lock().await;
+        global_state
+            .set_welcome_msg(
+                if let Some(guild_id) = msg.guild_id {
+                    guild_id.0
+                } else {
+                    0
+                },
+                &welcome_msg,
+            )
+            .await;
     }
     Ok(())
 }

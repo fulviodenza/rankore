@@ -1,77 +1,64 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, sync::Arc};
+
+use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 // TODO: Replace this with an actual database
 pub struct Guilds {
     guilds_map: Arc<RwLock<HashMap<u64, Guild>>>,
 }
 
+#[derive(Debug)]
 pub struct Guild {
     prefix: String,
     welcome_msg: String,
 }
-pub trait GuildRepo {
-    fn new() -> Self;
-    fn set_prefix(&self, guild_id: u64, prefix: &str);
-    fn get_prefix(&self, guild_id: u64) -> String;
-    fn set_welcome_msg(&self, guild_id: u64, welcome_msg: &str);
+
+impl Default for Guild {
+    fn default() -> Self {
+        Self {
+            prefix: "/".to_string(),
+            welcome_msg: "Welcome!".to_string(),
+        }
+    }
 }
 
+#[async_trait]
+pub trait GuildRepo {
+    fn new() -> Self;
+    async fn set_prefix(&self, guild_id: u64, prefix: &str);
+    async fn get_prefix(&self, guild_id: u64) -> String;
+    async fn set_welcome_msg(&self, guild_id: u64, welcome_msg: &str);
+}
+
+#[async_trait]
 impl GuildRepo for Guilds {
     fn new() -> Self {
         Guilds {
             guilds_map: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    fn set_prefix(&self, guild_id: u64, prefix: &str) {
-        let guild_binding = self
-            .guilds_map
-            .read()
-            .expect("Failed to acquire prefix_map lock");
-        let guild = guild_binding.get(&guild_id).unwrap();
-
-        let new_guild = Guild {
-            prefix: prefix.to_string(),
-            welcome_msg: guild.welcome_msg.clone(),
-        };
-        let mut map = self
-            .guilds_map
-            .write()
-            .expect("Failed to acquire prefix_map lock");
-
-        map.insert(guild_id, new_guild);
+    async fn set_prefix(&self, guild_id: u64, prefix: &str) {
+        let mut guild_binding = self.guilds_map.write().await;
+        let guild = guild_binding.entry(guild_id).or_insert_with(Guild::default);
+        guild.prefix = prefix.to_string();
         println!(
             "State prefix changed to {:?} for guild: {:?}",
-            prefix, guild_id
+            guild, guild_id
         )
     }
-    fn set_welcome_msg(&self, guild_id: u64, welcome_msg: &str) {
-        let guild_binding = self
-            .guilds_map
-            .read()
-            .expect("Failed to acquire prefix_map lock");
-        let guild = guild_binding.get(&guild_id).unwrap();
-
-        let new_guild = Guild {
-            prefix: welcome_msg.to_string(),
-            welcome_msg: guild.prefix.clone(),
-        };
-        let mut map = self
-            .guilds_map
-            .write()
-            .expect("Failed to acquire prefix_map lock");
-
-        map.insert(guild_id, new_guild);
+    async fn set_welcome_msg(&self, guild_id: u64, welcome_msg: &str) {
+        let mut guild_binding = self.guilds_map.write().await;
+        let guild = guild_binding.entry(guild_id).or_insert_with(Guild::default);
+        guild.welcome_msg = welcome_msg.to_string();
         println!(
-            "State welcome_msg changed to {:?} for guild: {:?}",
-            welcome_msg, guild_id
+            "State prefix changed to {:?} for guild: {:?}",
+            guild, guild_id
         )
     }
-    fn get_prefix(&self, guild_id: u64) -> String {
+    async fn get_prefix(&self, guild_id: u64) -> String {
         let locked_data = self.guilds_map.clone();
-        let data = locked_data.read().unwrap();
+        let data = locked_data.read().await;
         match data.get(&guild_id) {
             Some(value) => value.prefix.to_string(),
             None => "Key not found.".to_string(),
