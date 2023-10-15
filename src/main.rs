@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{collections::HashSet, env, sync::Arc};
 
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use async_trait::async_trait;
@@ -28,6 +28,7 @@ pub struct Bot;
 pub struct GlobalStateInner {
     guild: Arc<Mutex<Guilds>>,
     users: Arc<Mutex<Users>>,
+    pub active_users: Arc<Mutex<HashSet<u64>>>,
 }
 
 pub struct GlobalState {}
@@ -40,7 +41,7 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        crate::services::message::handle_message(ctx, msg).await
+        crate::services::message::increase_score(Arc::new(ctx), msg.author.id.0).await
     }
 
     async fn voice_state_update(&self, ctx: Context, state: VoiceState) {
@@ -56,6 +57,8 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+
+    // let pool = Pool::<Postgres>::connect("postgres://").await.unwrap();
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -99,9 +102,11 @@ async fn main() {
         .type_map_insert::<GlobalState>(GlobalStateInner {
             guild: Arc::new(Mutex::new(Guilds::new())),
             users: Arc::new(Mutex::new(Users::new())),
+            active_users: Arc::new(Mutex::new(HashSet::new())),
         })
         .await
         .expect("Error creating client");
+
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why)
     }
