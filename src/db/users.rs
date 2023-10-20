@@ -119,16 +119,10 @@ impl UserObserver for Users {
                         let _ = sender.send(());
                     }
                 }
-                UserEvents::_SentText(_user_id) => {
-                    // tokio::spawn(async move {
-                    //     Users::update_user(
-                    //         user_id,
-                    //         |user: &mut User| user.score += 1,
-                    //         self.users_map,
-                    //     )
-                    //     .await;
-                    //     println!("increased");
-                    // });
+                UserEvents::SentText(user_id) => {
+                    let users_map = Arc::clone(&user_lock);
+                    Users::update_user(user_id, |user: &mut User| user.score += 1, users_map).await;
+                    println!("user: {:?} increased score", user_id);
                 }
             }
         }

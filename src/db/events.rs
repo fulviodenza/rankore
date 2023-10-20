@@ -8,7 +8,7 @@ use super::users::User;
 pub enum UserEvents {
     Joined(u64),
     Left(u64),
-    _SentText(u64),
+    SentText(u64),
 }
 
 #[async_trait]

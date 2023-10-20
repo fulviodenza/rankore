@@ -6,8 +6,13 @@ use crate::GlobalState;
 
 pub async fn increase_score(ctx: Arc<Context>, user_id: u64) {
     let data_read = ctx.data.read().await;
-    if let Some(_global_state) = data_read.get::<GlobalState>() {
-        println!("user updated {:?}", user_id,);
+    if let Some(global_state) = data_read.get::<GlobalState>() {
+        let global_state_users = global_state.users.lock().await.clone();
+        global_state_users
+            .tx
+            .send(crate::db::events::UserEvents::SentText(user_id))
+            .unwrap();
+        println!("user: {:?} sent message", user_id);
     }
 }
 
