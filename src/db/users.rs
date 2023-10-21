@@ -98,7 +98,12 @@ impl UsersRepo for Users {
     }
 
     async fn get_users(&mut self) -> Vec<User> {
-        self.users_map.read().await.values().cloned().collect()
+        let mut users_vec: Vec<User> = self.users_map.read().await.values().cloned().collect();
+        let index = users_vec.iter().position(|u| u.nick == "rankore");
+        if let Some(index) = index {
+            users_vec.remove(index);
+        }
+        users_vec
     }
 }
 

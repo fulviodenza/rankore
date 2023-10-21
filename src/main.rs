@@ -2,6 +2,8 @@ use std::{collections::HashSet, env, sync::Arc};
 
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
+use crate::commands::set_welcome_msg::SET_WELCOME_MSG_COMMAND;
+
 use async_trait::async_trait;
 use db::{
     guild::{GuildRepo, Guilds},
@@ -22,7 +24,7 @@ mod db;
 mod services;
 
 #[group]
-#[commands(set_prefix, leaderboard)]
+#[commands(set_prefix, leaderboard, set_welcome_msg)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
@@ -58,9 +60,6 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
-
-    // let pool = Pool::<Postgres>::connect("postgres://").await.unwrap();
-
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
