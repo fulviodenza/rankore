@@ -21,11 +21,17 @@ pub struct Users {
 pub struct User {
     pub id: u64,
     pub score: u64,
+    pub nick: String,
 }
 
 impl User {
     fn new(id: u64) -> Self {
-        Self { id, score: 0 }
+        let empty_nick = "".to_string();
+        Self {
+            id,
+            score: 0,
+            nick: empty_nick,
+        }
     }
 }
 
@@ -34,18 +40,16 @@ pub trait UsersRepo {
     fn new() -> Self;
     async fn get_user(&self, id: u64) -> User;
     async fn insert_user(&mut self, user: User);
-    async fn update_user(
-        id: u64,
-        operation: for<'a> fn(&'a mut User),
-        users_lock: Arc<RwLock<HashMap<u64, User>>>,
-    );
+    async fn update_user<F>(id: u64, update_fn: F, users_lock: Arc<RwLock<HashMap<u64, User>>>)
+    where
+        F: Fn(&mut User) + Sync + Send;
+    async fn get_users(&mut self) -> Vec<User>;
 }
 
 #[async_trait]
 impl UsersRepo for Users {
     fn new() -> Self {
-        let users_map: Arc<RwLock<HashMap<u64, User>>> =
-            Arc::new(RwLock::new(HashMap::from([(0, User { id: 0, score: 0 })])));
+        let users_map: Arc<RwLock<HashMap<u64, User>>> = Arc::new(RwLock::new(HashMap::new()));
         let user_map_clone = users_map.clone();
         let (tx, rx) = mpsc::unbounded_channel::<UserEvents>();
         let users = Users { users_map, tx };
@@ -65,12 +69,36 @@ impl UsersRepo for Users {
         println!("User {:?} added.", user_id);
     }
 
-    async fn update_user(
-        id: u64,
-        operation: for<'a> fn(&'a mut User),
-        users_lock: Arc<RwLock<HashMap<u64, User>>>,
-    ) {
-        users_lock.write().await.entry(id).and_modify(operation);
+    async fn update_user<F>(id: u64, update_fn: F, users_lock: Arc<RwLock<HashMap<u64, User>>>)
+    where
+        F: Fn(&mut User) + Sync + Send,
+    {
+        let mut write_lock = users_lock.write().await;
+
+        let contains = write_lock.contains_key(&id);
+        write_lock
+            .entry(id)
+            .and_modify(|user| {
+                update_fn(user);
+            })
+            .or_insert(User {
+                id,
+                score: 0,
+                nick: "".to_string(),
+            });
+
+        match contains {
+            true => {}
+            false => {
+                write_lock.entry(id).and_modify(|user| update_fn(user));
+            }
+        }
+        let user = write_lock.get(&id).unwrap();
+        println!("{:?}", user);
+    }
+
+    async fn get_users(&mut self) -> Vec<User> {
+        self.users_map.read().await.values().cloned().collect()
     }
 }
 
@@ -86,8 +114,6 @@ impl UserObserver for Users {
         while let Some(event) = rx.recv().await {
             match event {
                 UserEvents::Joined(user_id) => {
-                    // self.postgres_pool.acquire().await;
-                    //
                     let (tx, mut rx) = oneshot::channel::<()>();
                     let users_map = Arc::clone(&user_lock);
                     hashmap.write().await.insert(user_id, tx);
@@ -119,9 +145,17 @@ impl UserObserver for Users {
                         let _ = sender.send(());
                     }
                 }
-                UserEvents::SentText(user_id) => {
+                UserEvents::SentText(user_id, nick) => {
                     let users_map = Arc::clone(&user_lock);
-                    Users::update_user(user_id, |user: &mut User| user.score += 1, users_map).await;
+                    Users::update_user(
+                        user_id,
+                        |user: &mut User| {
+                            user.score += 1;
+                            user.nick = nick.clone();
+                        },
+                        users_map,
+                    )
+                    .await;
                     println!("user: {:?} increased score", user_id);
                 }
             }

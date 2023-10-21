@@ -1,5 +1,6 @@
 use std::{collections::HashSet, env, sync::Arc};
 
+use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use async_trait::async_trait;
 use db::{
@@ -16,13 +17,12 @@ use serenity::{
     Client,
 };
 use tokio::sync::Mutex;
-
 mod commands;
 mod db;
 mod services;
 
 #[group]
-#[commands(set_prefix)]
+#[commands(set_prefix, leaderboard)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
@@ -41,7 +41,8 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        crate::services::message::increase_score(Arc::new(ctx), msg.author.id.0).await
+        crate::services::message::increase_score(Arc::new(ctx), msg.author.id.0, msg.author.name)
+            .await
     }
 
     async fn voice_state_update(&self, ctx: Context, state: VoiceState) {
@@ -69,7 +70,7 @@ async fn main() {
             c.dynamic_prefix(|ctx, msg| {
                 Box::pin(async move {
                     let guild_id = msg.guild_id.unwrap().0;
-                    let data = ctx.data.read().await;
+                    let data = ctx.data.write().await;
                     let global_state = data.get::<GlobalState>();
 
                     let guild = global_state.unwrap().guild.lock().await;
@@ -82,6 +83,7 @@ async fn main() {
                             let val = s;
                             if val == "Key not found." {
                                 println!("Using ! as prefix");
+                                guild.set_prefix(guild_id, "!").await;
                                 Some("!".to_string())
                             } else {
                                 Some(val)
@@ -89,6 +91,7 @@ async fn main() {
                         }
                         None => {
                             println!("Using ! as prefix");
+                            guild.set_prefix(guild_id, "!").await;
                             Some("!".to_string())
                         }
                     }
