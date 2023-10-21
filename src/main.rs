@@ -1,5 +1,6 @@
-use std::{env, sync::Arc};
+use std::{collections::HashSet, env, sync::Arc};
 
+use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use async_trait::async_trait;
 use db::{
@@ -16,18 +17,18 @@ use serenity::{
     Client,
 };
 use tokio::sync::Mutex;
-
 mod commands;
 mod db;
 mod services;
 
 #[group]
-#[commands(set_prefix)]
+#[commands(set_prefix, leaderboard)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
     guild: Arc<Mutex<Guilds>>,
     users: Arc<Mutex<Users>>,
+    pub active_users: Arc<Mutex<HashSet<u64>>>,
 }
 
 pub struct GlobalState {}
@@ -40,7 +41,8 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        crate::services::message::handle_message(ctx, msg).await
+        crate::services::message::increase_score(Arc::new(ctx), msg.author.id.0, msg.author.name)
+            .await
     }
 
     async fn voice_state_update(&self, ctx: Context, state: VoiceState) {
@@ -57,6 +59,8 @@ impl EventHandler for Handler {
 async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
+    // let pool = Pool::<Postgres>::connect("postgres://").await.unwrap();
+
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
@@ -66,7 +70,7 @@ async fn main() {
             c.dynamic_prefix(|ctx, msg| {
                 Box::pin(async move {
                     let guild_id = msg.guild_id.unwrap().0;
-                    let data = ctx.data.read().await;
+                    let data = ctx.data.write().await;
                     let global_state = data.get::<GlobalState>();
 
                     let guild = global_state.unwrap().guild.lock().await;
@@ -79,6 +83,7 @@ async fn main() {
                             let val = s;
                             if val == "Key not found." {
                                 println!("Using ! as prefix");
+                                guild.set_prefix(guild_id, "!").await;
                                 Some("!".to_string())
                             } else {
                                 Some(val)
@@ -86,6 +91,7 @@ async fn main() {
                         }
                         None => {
                             println!("Using ! as prefix");
+                            guild.set_prefix(guild_id, "!").await;
                             Some("!".to_string())
                         }
                     }
@@ -99,9 +105,11 @@ async fn main() {
         .type_map_insert::<GlobalState>(GlobalStateInner {
             guild: Arc::new(Mutex::new(Guilds::new())),
             users: Arc::new(Mutex::new(Users::new())),
+            active_users: Arc::new(Mutex::new(HashSet::new())),
         })
         .await
         .expect("Error creating client");
+
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why)
     }
