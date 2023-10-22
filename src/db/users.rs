@@ -118,7 +118,7 @@ impl UserObserver for Users {
 
         while let Some(event) = rx.recv().await {
             match event {
-                UserEvents::Joined(user_id) => {
+                UserEvents::Joined(user_id, nick) => {
                     let (tx, mut rx) = oneshot::channel::<()>();
                     let users_map = Arc::clone(&user_lock);
                     hashmap.write().await.insert(user_id, tx);
@@ -129,7 +129,10 @@ impl UserObserver for Users {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(2)) => {
                                     Users::update_user(
                                         user_id,
-                                        |user: &mut User| user.score += 1,
+                                        |user: &mut User| {
+                                            user.score += 1;
+                                            user.nick = nick.clone();
+                                        },
                                         users_map.clone(),
                                     )
                                     .await;

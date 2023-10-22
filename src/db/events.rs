@@ -6,7 +6,7 @@ use tokio::sync::{mpsc::UnboundedReceiver, RwLock};
 use super::users::User;
 
 pub enum UserEvents {
-    Joined(u64),
+    Joined(u64, String),
     Left(u64),
     SentText(u64, String),
 }

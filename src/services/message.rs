@@ -34,12 +34,23 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
             if voice.channel_id.is_some() {
                 println!("{:?}", voice.channel_id);
                 let global_state_users = global_state.users.lock().await.clone();
+                let mut nick: String = "".to_string();
+                if let Some(guild_id) = voice.guild_id {
+                    nick = guild_id
+                        .member(&ctx.http, user_id)
+                        .await
+                        .ok()
+                        .unwrap()
+                        .nick
+                        .unwrap_or_else(|| voice.member.unwrap().display_name().to_string())
+                }
+
                 match active_users.contains(&user_id) {
                     true => {}
                     false => {
                         global_state_users
                             .tx
-                            .send(crate::db::events::UserEvents::Joined(user_id))
+                            .send(crate::db::events::UserEvents::Joined(user_id, nick))
                             .unwrap();
                         active_users.insert(user_id);
                     }
