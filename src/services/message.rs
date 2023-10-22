@@ -36,6 +36,8 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
                 let global_state_users = global_state.users.lock().await.clone();
                 let mut nick: String = "".to_string();
                 if let Some(guild_id) = voice.guild_id {
+                    // assign to nick the nick in the guild
+                    // if any or assign the display name
                     nick = guild_id
                         .member(&ctx.http, user_id)
                         .await
