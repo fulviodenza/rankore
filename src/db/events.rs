@@ -8,6 +8,6 @@ pub enum UserEvents {
 }
 
 #[async_trait]
-pub trait UserObserver {
+pub trait Observer {
     async fn notify(&self, mut rx: UnboundedReceiver<UserEvents>);
 }

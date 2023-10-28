@@ -1,23 +1,27 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
+use sqlx::{Error, FromRow, Pool, Postgres};
 
-// TODO: Replace this with an actual database
 pub struct Guilds {
-    guilds_map: Arc<RwLock<HashMap<i64, Guild>>>,
+    pub pool: Pool<Postgres>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct Guild {
+    #[sqlx(default)]
+    id: i64,
+    #[sqlx(default)]
     prefix: String,
+    #[sqlx(default)]
     welcome_msg: String,
 }
 
 impl Default for Guild {
     fn default() -> Self {
         Self {
-            prefix: "/".to_string(),
+            id: 0,
+            prefix: "!".to_string(),
             welcome_msg: "Welcome!".to_string(),
         }
     }
@@ -25,7 +29,7 @@ impl Default for Guild {
 
 #[async_trait]
 pub trait GuildRepo {
-    fn new() -> Self;
+    async fn new(pool: &Pool<Postgres>) -> Arc<Self>;
     async fn set_prefix(&self, guild_id: i64, prefix: &str);
     async fn get_prefix(&self, guild_id: i64) -> String;
     async fn set_welcome_msg(&self, guild_id: i64, welcome_msg: &str);
@@ -33,35 +37,76 @@ pub trait GuildRepo {
 
 #[async_trait]
 impl GuildRepo for Guilds {
-    fn new() -> Self {
-        Guilds {
-            guilds_map: Arc::new(RwLock::new(HashMap::new())),
-        }
+    async fn new(pool: &Pool<Postgres>) -> Arc<Self> {
+        Arc::new(Guilds { pool: pool.clone() })
     }
     async fn set_prefix(&self, guild_id: i64, prefix: &str) {
-        let mut guild_binding = self.guilds_map.write().await;
-        let guild = guild_binding.entry(guild_id).or_insert_with(Guild::default);
-        guild.prefix = prefix.to_string();
-        println!(
-            "State prefix changed to {:?} for guild: {:?}",
-            guild, guild_id
+        let result = sqlx::query_as!(
+            Guild,
+            "UPDATE guilds SET prefix = $1 WHERE id = $2",
+            prefix,
+            guild_id as i64
         )
+        .fetch_one(&self.pool)
+        .await;
+
+        match result {
+            Ok(_) => {}
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into guilds(id, prefix, welcome_msg) values ($1, $2, $3)",
+                    guild_id as i64,
+                    prefix,
+                    "",
+                )
+                .execute(&self.pool)
+                .await;
+            }
+        }
     }
     async fn set_welcome_msg(&self, guild_id: i64, welcome_msg: &str) {
-        let mut guild_binding = self.guilds_map.write().await;
-        let guild = guild_binding.entry(guild_id).or_insert_with(Guild::default);
-        guild.welcome_msg = welcome_msg.to_string();
-        println!(
-            "State prefix changed to {:?} for guild: {:?}",
-            guild, guild_id
+        let result = sqlx::query_as!(
+            Guild,
+            "UPDATE guilds SET welcome_msg = $1 WHERE id = $2",
+            welcome_msg,
+            guild_id as i64
         )
+        .fetch_one(&self.pool)
+        .await;
+
+        match result {
+            Ok(_) => {}
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into guilds(id, prefix, welcome_msg) values ($1, $2, $3)",
+                    guild_id as i64,
+                    "!",
+                    welcome_msg,
+                )
+                .execute(&self.pool)
+                .await;
+            }
+        }
     }
     async fn get_prefix(&self, guild_id: i64) -> String {
-        let locked_data = self.guilds_map.clone();
-        let data = locked_data.read().await;
-        match data.get(&guild_id) {
-            Some(value) => value.prefix.to_string(),
-            None => "Key not found.".to_string(),
-        }
+        let guild: Result<Guild, Error> =
+            sqlx::query_as!(Guild, "select * from guilds where id = $1", guild_id)
+                .fetch_one(&self.pool)
+                .await;
+        match guild {
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into guilds(id, prefix, welcome_msg) values ($1, $2, $3)",
+                    guild_id as i64,
+                    "!",
+                    "Welcome!"
+                )
+                .execute(&self.pool)
+                .await;
+                "!".to_string()
+            }
+            Ok(g) => g.prefix.to_string(),
+        };
+        "!".to_string()
     }
 }

@@ -1,8 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{
-    postgres::{PgPoolOptions, PgRow},
-    Error, FromRow, Pool, Postgres, Row,
-};
+use sqlx::{postgres::PgRow, Error, FromRow, Pool, Postgres, Row};
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
     select,
@@ -14,7 +11,7 @@ use tokio::{
 
 use crate::db;
 
-use super::events::{UserEvents, UserObserver};
+use super::events::{Observer, UserEvents};
 
 #[derive(Clone)]
 pub struct Users {
@@ -34,7 +31,7 @@ pub struct User {
 
 #[async_trait]
 pub trait UsersRepo {
-    async fn new(db_url: String) -> Arc<Self>;
+    async fn new(pool: &Pool<Postgres>) -> Arc<Self>;
     async fn get_user(&self, id: i64) -> User;
     async fn insert_user(&self, user: User);
     async fn update_user(pool: &Pool<Postgres>, id: User);
@@ -43,15 +40,12 @@ pub trait UsersRepo {
 
 #[async_trait]
 impl UsersRepo for Users {
-    async fn new(db_url: String) -> Arc<Self> {
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&db_url)
-            .await
-            .unwrap();
-
+    async fn new(pool: &Pool<Postgres>) -> Arc<Self> {
         let (tx, rx) = mpsc::unbounded_channel::<UserEvents>();
-        let users = Arc::new(Users { tx, pool });
+        let users = Arc::new(Users {
+            tx,
+            pool: pool.clone(),
+        });
         let users_clone = Arc::clone(&users);
         tokio::spawn(async move {
             users_clone.notify(rx).await;
@@ -151,7 +145,7 @@ impl UsersRepo for Users {
 }
 
 #[async_trait]
-impl UserObserver for Users {
+impl Observer for Users {
     async fn notify(&self, mut rx: UnboundedReceiver<UserEvents>) {
         let hashmap: Arc<RwLock<HashMap<i64, oneshot::Sender<()>>>> =
             Arc::new(RwLock::new(HashMap::new()));

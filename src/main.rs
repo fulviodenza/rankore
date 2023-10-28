@@ -18,6 +18,7 @@ use serenity::{
     prelude::{Context, EventHandler, GatewayIntents, TypeMapKey},
     Client,
 };
+use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Mutex;
 mod commands;
 mod db;
@@ -28,7 +29,7 @@ mod services;
 pub struct Bot;
 
 pub struct GlobalStateInner {
-    guild: Arc<Mutex<Guilds>>,
+    guild: Arc<Mutex<Arc<Guilds>>>,
     users: Arc<Mutex<Arc<Users>>>,
     pub active_users: Arc<Mutex<HashSet<i64>>>,
 }
@@ -65,6 +66,12 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
     let db_url =
         env::var("DATABASE_URL").expect("Expected a token for database in the environment");
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&db_url)
+        .await
+        .unwrap();
+
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
@@ -107,8 +114,8 @@ async fn main() {
         .event_handler(Handler)
         .framework(framework)
         .type_map_insert::<GlobalState>(GlobalStateInner {
-            guild: Arc::new(Mutex::new(Guilds::new())),
-            users: Arc::new(Mutex::new(Users::new(db_url).await)),
+            guild: Arc::new(Mutex::new(Guilds::new(&pool).await)),
+            users: Arc::new(Mutex::new(Users::new(&pool).await)),
             active_users: Arc::new(Mutex::new(HashSet::new())),
         })
         .await
