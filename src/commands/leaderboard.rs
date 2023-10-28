@@ -8,7 +8,7 @@ use serenity::{model::prelude::Message, prelude::Context};
 async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let mut global_state = global_state.users.lock().await;
+        let global_state = global_state.users.lock().await;
 
         let mut users_vec = global_state.get_users().await;
         users_vec.sort_by(|a: &crate::db::users::User, b| b.score.partial_cmp(&a.score).unwrap());

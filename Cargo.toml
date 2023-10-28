@@ -17,5 +17,14 @@ serenity = { version = "0.11.6", default-features = false, features = [
     "rustls_backend",
 ] }
 tokio = { version = "1.33.0", features = ["full"] }
-sqlx = { version = "0.7.2", features = ["postgres"] }
-fn-traits = "0.1.2"
+sqlx = { version = "0.7", features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    "postgres",
+    "uuid",
+    "macros",
+    "chrono",
+    "bigdecimal",
+    "json",
+    # "bigint",
+] }

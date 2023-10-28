@@ -1,6 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
-
 use async_trait::async_trait;
+use sqlx::{
+    postgres::{PgPoolOptions, PgRow},
+    Error, FromRow, Pool, Postgres, Row,
+};
+use std::{collections::HashMap, sync::Arc};
 use tokio::{
     select,
     sync::{
@@ -9,136 +12,167 @@ use tokio::{
     },
 };
 
+use crate::db;
+
 use super::events::{UserEvents, UserObserver};
 
 #[derive(Clone)]
 pub struct Users {
-    users_map: Arc<RwLock<HashMap<u64, User>>>,
+    pub pool: Pool<Postgres>,
     pub tx: UnboundedSender<UserEvents>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 pub struct User {
-    pub id: u64,
-    pub score: u64,
+    #[sqlx(default)]
+    pub id: i64,
+    #[sqlx(default)]
+    pub score: i64,
+    #[sqlx(default)]
     pub nick: String,
-}
-
-impl User {
-    fn new(id: u64) -> Self {
-        let empty_nick = "".to_string();
-        Self {
-            id,
-            score: 0,
-            nick: empty_nick,
-        }
-    }
 }
 
 #[async_trait]
 pub trait UsersRepo {
-    fn new() -> Self;
-    async fn get_user(&self, id: u64) -> User;
-    async fn insert_user(&mut self, user: User);
-    async fn update_user<F>(id: u64, update_fn: F, users_lock: Arc<RwLock<HashMap<u64, User>>>)
-    where
-        F: Fn(&mut User) + Sync + Send;
-    async fn get_users(&mut self) -> Vec<User>;
+    async fn new(db_url: String) -> Arc<Self>;
+    async fn get_user(&self, id: i64) -> User;
+    async fn insert_user(&self, user: User);
+    async fn update_user(pool: &Pool<Postgres>, id: User);
+    async fn get_users(&self) -> Vec<User>;
 }
 
 #[async_trait]
 impl UsersRepo for Users {
-    fn new() -> Self {
-        let users_map: Arc<RwLock<HashMap<u64, User>>> = Arc::new(RwLock::new(HashMap::new()));
-        let user_map_clone = users_map.clone();
+    async fn new(db_url: String) -> Arc<Self> {
+        let pool = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&db_url)
+            .await
+            .unwrap();
+
         let (tx, rx) = mpsc::unbounded_channel::<UserEvents>();
-        let users = Users { users_map, tx };
-        tokio::spawn(Self::notify(rx, user_map_clone));
+        let users = Arc::new(Users { tx, pool });
+        let users_clone = Arc::clone(&users);
+        tokio::spawn(async move {
+            users_clone.notify(rx).await;
+        });
         users
     }
-    async fn get_user(&self, id: u64) -> User {
-        let mut binding = self.users_map.write().await;
-        let user = binding.entry(id).or_insert_with(|| User::new(id));
-        user.clone()
+    async fn get_user(&self, id: i64) -> User {
+        let temp_user: Result<User, Error> =
+            sqlx::query_as!(User, "select * from users where id = $1", id)
+                .fetch_one(&self.pool)
+                .await;
+        match temp_user {
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into users(id, score, nick) values ($1, $2, $3)",
+                    id as i64,
+                    0,
+                    ""
+                )
+                .execute(&self.pool)
+                .await;
+                return User {
+                    id,
+                    score: 0,
+                    nick: "".to_string(),
+                };
+            }
+            Ok(u) => {
+                return User {
+                    id: u.id,
+                    score: u.score,
+                    nick: u.nick,
+                }
+            }
+        };
     }
 
-    async fn insert_user(&mut self, user: User) {
-        let user_id = user.id;
-        let mut map = self.users_map.write().await;
-        map.insert(user.id, user);
-        println!("User {:?} added.", user_id);
+    async fn insert_user(&self, user: User) {
+        let _ = sqlx::query!(
+            "INSERT into users(id, score, nick) values ($1, $2, $3)",
+            user.id as i64,
+            user.score as i64,
+            user.nick
+        )
+        .execute(&self.pool)
+        .await;
     }
 
-    async fn update_user<F>(id: u64, update_fn: F, users_lock: Arc<RwLock<HashMap<u64, User>>>)
-    where
-        F: Fn(&mut User) + Sync + Send,
-    {
-        let mut write_lock = users_lock.write().await;
-
-        let contains = write_lock.contains_key(&id);
-        write_lock
-            .entry(id)
-            .and_modify(|user| {
-                update_fn(user);
-            })
-            .or_insert(User {
-                id,
-                score: 0,
-                nick: "".to_string(),
-            });
-
-        match contains {
-            true => {}
-            false => {
-                write_lock.entry(id).and_modify(|user| update_fn(user));
+    async fn update_user(pool: &Pool<Postgres>, user: User) {
+        let temp_user: Result<User, Error> =
+            sqlx::query_as!(User, "select * from users where id = $1", user.id as i64)
+                .fetch_one(pool)
+                .await;
+        match temp_user {
+            Ok(u) => {
+                let _ = sqlx::query!(
+                    "UPDATE users SET  score = $1, nick = $2 WHERE id = $3",
+                    u.score + 1 as i64,
+                    user.nick,
+                    user.id as i64,
+                )
+                .execute(pool)
+                .await;
+            }
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into users(id, score, nick) values ($1, $2, $3)",
+                    user.id as i64,
+                    0,
+                    "",
+                )
+                .execute(pool)
+                .await;
             }
         }
-        let user = write_lock.get(&id).unwrap();
-        println!("{:?}", user);
     }
 
-    async fn get_users(&mut self) -> Vec<User> {
-        let mut users_vec: Vec<User> = self.users_map.read().await.values().cloned().collect();
-        let index = users_vec.iter().position(|u| u.nick == "rankore");
-        if let Some(index) = index {
-            users_vec.remove(index);
-        }
+    async fn get_users(&self) -> Vec<User> {
+        let result: Vec<PgRow> = sqlx::query("select * from users")
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+
+        let users_vec: Vec<User> = result
+            .iter()
+            .map(|row| {
+                User {
+                    id: row.get(0),    // 0 -> 'id' column
+                    score: row.get(1), // 1 -> 'score' column
+                    nick: row.get(2),  // 2 -> 'nick' column
+                }
+            })
+            .collect();
+
         users_vec
     }
 }
 
 #[async_trait]
 impl UserObserver for Users {
-    async fn notify(
-        mut rx: UnboundedReceiver<UserEvents>,
-        user_lock: Arc<RwLock<HashMap<u64, User>>>,
-    ) {
-        let hashmap: Arc<RwLock<HashMap<u64, oneshot::Sender<()>>>> =
+    async fn notify(&self, mut rx: UnboundedReceiver<UserEvents>) {
+        let hashmap: Arc<RwLock<HashMap<i64, oneshot::Sender<()>>>> =
             Arc::new(RwLock::new(HashMap::new()));
 
         while let Some(event) = rx.recv().await {
+            let users_pool = self.pool.clone();
+
             match event {
                 UserEvents::Joined(user_id, nick) => {
                     let (tx, mut rx) = oneshot::channel::<()>();
-                    let users_map = Arc::clone(&user_lock);
                     hashmap.write().await.insert(user_id, tx);
-
                     tokio::spawn(async move {
                         loop {
+                            let user_pool_clone = users_pool.clone();
+
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(2)) => {
-                                    Users::update_user(
-                                        user_id,
-                                        |user: &mut User| {
-                                            user.score += 1;
-                                            user.nick = nick.clone();
-                                        },
-                                        users_map.clone(),
-                                    )
+                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score:0 , nick: nick.clone() })
                                     .await;
                                 },
                                 _ = &mut rx => {
-                                    println!("hello, i entered here");
                                     break
                                 },
                             };
@@ -154,17 +188,15 @@ impl UserObserver for Users {
                     }
                 }
                 UserEvents::SentText(user_id, nick) => {
-                    let users_map = Arc::clone(&user_lock);
                     Users::update_user(
-                        user_id,
-                        |user: &mut User| {
-                            user.score += 1;
-                            user.nick = nick.clone();
+                        &self.pool,
+                        User {
+                            id: user_id,
+                            score: 0,
+                            nick,
                         },
-                        users_map,
                     )
                     .await;
-                    println!("user: {:?} increased score", user_id);
                 }
             }
         }

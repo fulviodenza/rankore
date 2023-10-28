@@ -17,7 +17,7 @@ async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandRes
         global_state
             .set_welcome_msg(
                 if let Some(guild_id) = msg.guild_id {
-                    guild_id.0
+                    guild_id.0 as i64
                 } else {
                     0
                 },

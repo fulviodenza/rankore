@@ -29,8 +29,8 @@ pub struct Bot;
 
 pub struct GlobalStateInner {
     guild: Arc<Mutex<Guilds>>,
-    users: Arc<Mutex<Users>>,
-    pub active_users: Arc<Mutex<HashSet<u64>>>,
+    users: Arc<Mutex<Arc<Users>>>,
+    pub active_users: Arc<Mutex<HashSet<i64>>>,
 }
 
 pub struct GlobalState {}
@@ -43,12 +43,15 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        crate::services::message::increase_score(Arc::new(ctx), msg.author.id.0, msg.author.name)
-            .await
+        crate::services::message::increase_score(
+            Arc::new(ctx),
+            msg.author.id.0 as i64,
+            msg.author.name,
+        )
+        .await
     }
 
     async fn voice_state_update(&self, ctx: Context, state: VoiceState) {
-        println!("Hello");
         crate::services::message::handle_voice(ctx, state).await
     }
 
@@ -59,7 +62,9 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
-    let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
+    let db_url =
+        env::var("DATABASE_URL").expect("Expected a token for database in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
@@ -68,7 +73,7 @@ async fn main() {
         .configure(|c| {
             c.dynamic_prefix(|ctx, msg| {
                 Box::pin(async move {
-                    let guild_id = msg.guild_id.unwrap().0;
+                    let guild_id = msg.guild_id.unwrap().0 as i64;
                     let data = ctx.data.write().await;
                     let global_state = data.get::<GlobalState>();
 
@@ -103,7 +108,7 @@ async fn main() {
         .framework(framework)
         .type_map_insert::<GlobalState>(GlobalStateInner {
             guild: Arc::new(Mutex::new(Guilds::new())),
-            users: Arc::new(Mutex::new(Users::new())),
+            users: Arc::new(Mutex::new(Users::new(db_url).await)),
             active_users: Arc::new(Mutex::new(HashSet::new())),
         })
         .await

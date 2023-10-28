@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 
 // TODO: Replace this with an actual database
 pub struct Guilds {
-    guilds_map: Arc<RwLock<HashMap<u64, Guild>>>,
+    guilds_map: Arc<RwLock<HashMap<i64, Guild>>>,
 }
 
 #[derive(Debug)]
@@ -26,9 +26,9 @@ impl Default for Guild {
 #[async_trait]
 pub trait GuildRepo {
     fn new() -> Self;
-    async fn set_prefix(&self, guild_id: u64, prefix: &str);
-    async fn get_prefix(&self, guild_id: u64) -> String;
-    async fn set_welcome_msg(&self, guild_id: u64, welcome_msg: &str);
+    async fn set_prefix(&self, guild_id: i64, prefix: &str);
+    async fn get_prefix(&self, guild_id: i64) -> String;
+    async fn set_welcome_msg(&self, guild_id: i64, welcome_msg: &str);
 }
 
 #[async_trait]
@@ -38,7 +38,7 @@ impl GuildRepo for Guilds {
             guilds_map: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    async fn set_prefix(&self, guild_id: u64, prefix: &str) {
+    async fn set_prefix(&self, guild_id: i64, prefix: &str) {
         let mut guild_binding = self.guilds_map.write().await;
         let guild = guild_binding.entry(guild_id).or_insert_with(Guild::default);
         guild.prefix = prefix.to_string();
@@ -47,7 +47,7 @@ impl GuildRepo for Guilds {
             guild, guild_id
         )
     }
-    async fn set_welcome_msg(&self, guild_id: u64, welcome_msg: &str) {
+    async fn set_welcome_msg(&self, guild_id: i64, welcome_msg: &str) {
         let mut guild_binding = self.guilds_map.write().await;
         let guild = guild_binding.entry(guild_id).or_insert_with(Guild::default);
         guild.welcome_msg = welcome_msg.to_string();
@@ -56,7 +56,7 @@ impl GuildRepo for Guilds {
             guild, guild_id
         )
     }
-    async fn get_prefix(&self, guild_id: u64) -> String {
+    async fn get_prefix(&self, guild_id: i64) -> String {
         let locked_data = self.guilds_map.clone();
         let data = locked_data.read().await;
         match data.get(&guild_id) {

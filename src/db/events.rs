@@ -1,20 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
-
 use async_trait::async_trait;
-use tokio::sync::{mpsc::UnboundedReceiver, RwLock};
-
-use super::users::User;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 pub enum UserEvents {
-    Joined(u64, String),
-    Left(u64),
-    SentText(u64, String),
+    Joined(i64, String),
+    Left(i64),
+    SentText(i64, String),
 }
 
 #[async_trait]
 pub trait UserObserver {
-    async fn notify(
-        mut rx: UnboundedReceiver<UserEvents>,
-        user_lock: Arc<RwLock<HashMap<u64, User>>>,
-    );
+    async fn notify(&self, mut rx: UnboundedReceiver<UserEvents>);
 }

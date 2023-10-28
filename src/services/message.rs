@@ -4,7 +4,7 @@ use serenity::{model::voice::VoiceState, prelude::Context};
 
 use crate::GlobalState;
 
-pub async fn increase_score(ctx: Arc<Context>, user_id: u64, nick: String) {
+pub async fn increase_score(ctx: Arc<Context>, user_id: i64, nick: String) {
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state_users = global_state.users.lock().await.clone();
@@ -17,7 +17,7 @@ pub async fn increase_score(ctx: Arc<Context>, user_id: u64, nick: String) {
 }
 
 pub async fn handle_voice(ctx: Context, voice: VoiceState) {
-    let user_id = voice.user_id.0;
+    let user_id = voice.user_id.0 as i64;
     if let Some(global_state) = ctx.data.read().await.get::<GlobalState>() {
         let mut active_users = global_state.active_users.lock().await;
         if active_users.contains(&user_id) && voice.channel_id.is_none() {
@@ -39,7 +39,7 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
                     // assign to nick the nick in the guild
                     // if any or assign the display name
                     nick = guild_id
-                        .member(&ctx.http, user_id)
+                        .member(&ctx.http, voice.user_id.0)
                         .await
                         .ok()
                         .unwrap()
