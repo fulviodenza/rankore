@@ -41,8 +41,7 @@ impl GuildRepo for Guilds {
         Arc::new(Guilds { pool: pool.clone() })
     }
     async fn set_prefix(&self, guild_id: i64, prefix: &str) {
-        let result = sqlx::query_as!(
-            Guild,
+        let result = sqlx::query!(
             "UPDATE guilds SET prefix = $1 WHERE id = $2",
             prefix,
             guild_id as i64
@@ -103,10 +102,9 @@ impl GuildRepo for Guilds {
                 )
                 .execute(&self.pool)
                 .await;
-                "!".to_string()
+                return "!".to_string();
             }
-            Ok(g) => g.prefix.to_string(),
+            Ok(g) => return g.prefix.to_string(),
         };
-        "!".to_string()
     }
 }

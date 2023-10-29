@@ -170,7 +170,6 @@ impl Observer for Users {
                                     break
                                 },
                             };
-                            println!("increased");
                         }
                     });
                 }
