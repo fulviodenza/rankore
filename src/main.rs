@@ -48,6 +48,7 @@ impl EventHandler for Handler {
             Arc::new(ctx),
             msg.author.id.0 as i64,
             msg.author.name,
+            msg.author.bot,
         )
         .await
     }

@@ -27,6 +27,8 @@ pub struct User {
     pub score: i64,
     #[sqlx(default)]
     pub nick: String,
+    #[sqlx(default)]
+    pub is_bot: bool,
 }
 
 #[async_trait]
@@ -71,6 +73,7 @@ impl UsersRepo for Users {
                     id,
                     score: 0,
                     nick: "".to_string(),
+                    is_bot: false,
                 };
             }
             Ok(u) => {
@@ -78,6 +81,7 @@ impl UsersRepo for Users {
                     id: u.id,
                     score: u.score,
                     nick: u.nick,
+                    is_bot: u.is_bot,
                 }
             }
         };
@@ -85,10 +89,11 @@ impl UsersRepo for Users {
 
     async fn insert_user(&self, user: User) {
         let _ = sqlx::query!(
-            "INSERT into users(id, score, nick) values ($1, $2, $3)",
+            "INSERT into users(id, score, nick, is_bot) values ($1, $2, $3, $4)",
             user.id as i64,
             user.score as i64,
-            user.nick
+            user.nick,
+            user.is_bot
         )
         .execute(&self.pool)
         .await;
@@ -102,9 +107,10 @@ impl UsersRepo for Users {
         match temp_user {
             Ok(u) => {
                 let _ = sqlx::query!(
-                    "UPDATE users SET  score = $1, nick = $2 WHERE id = $3",
+                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3 WHERE id = $4",
                     u.score + 1 as i64,
                     user.nick,
+                    user.is_bot,
                     user.id as i64,
                 )
                 .execute(pool)
@@ -112,10 +118,11 @@ impl UsersRepo for Users {
             }
             Err(_) => {
                 let _ = sqlx::query!(
-                    "INSERT into users(id, score, nick) values ($1, $2, $3)",
+                    "INSERT into users(id, score, nick, is_bot) values ($1, $2, $3, $4)",
                     user.id as i64,
                     0,
                     "",
+                    user.is_bot,
                 )
                 .execute(pool)
                 .await;
@@ -133,9 +140,10 @@ impl UsersRepo for Users {
             .iter()
             .map(|row| {
                 User {
-                    id: row.get(0),    // 0 -> 'id' column
-                    score: row.get(1), // 1 -> 'score' column
-                    nick: row.get(2),  // 2 -> 'nick' column
+                    id: row.get(0),     // 0 -> 'id' column
+                    score: row.get(1),  // 1 -> 'score' column
+                    nick: row.get(2),   // 2 -> 'nick' column
+                    is_bot: row.get(3), // 3 -> 'is_bot' column
                 }
             })
             .collect();
@@ -154,7 +162,7 @@ impl Observer for Users {
             let users_pool = self.pool.clone();
 
             match event {
-                UserEvents::Joined(user_id, nick) => {
+                UserEvents::Joined(user_id, nick, is_bot) => {
                     let (tx, mut rx) = oneshot::channel::<()>();
                     hashmap.write().await.insert(user_id, tx);
                     tokio::spawn(async move {
@@ -163,7 +171,7 @@ impl Observer for Users {
 
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(2)) => {
-                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score:0 , nick: nick.clone() })
+                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score:0 , nick: nick.clone(), is_bot})
                                     .await;
                                 },
                                 _ = &mut rx => {
@@ -180,13 +188,14 @@ impl Observer for Users {
                         let _ = sender.send(());
                     }
                 }
-                UserEvents::SentText(user_id, nick) => {
+                UserEvents::SentText(user_id, nick, is_bot) => {
                     Users::update_user(
                         &self.pool,
                         User {
                             id: user_id,
                             score: 0,
                             nick,
+                            is_bot,
                         },
                     )
                     .await;

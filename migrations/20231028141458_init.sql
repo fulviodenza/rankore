@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS users(
     id bigint PRIMARY KEY NOT NULL, 
     score bigint NOT NULL, 
-    nick varchar(20) NOT NULL
+    nick varchar(20) NOT NULL,
+    is_bot boolean NOT NULL
 );
 CREATE TABLE IF NOT EXISTS guilds(
     id bigint PRIMARY KEY NOT NULL,

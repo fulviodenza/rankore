@@ -28,3 +28,6 @@ sqlx = { version = "0.7", features = [
     "json",
     # "bigint",
 ] }
+
+# [target.arm-unknown-linux-gnueabihf]
+# passthrough = ["DATABASE_URL", "DISCORD_TOKEN"]

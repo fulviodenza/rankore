@@ -15,7 +15,9 @@ async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult
 
         let mut msg_str = "".to_string();
         for (_, user) in users_vec.into_iter().enumerate() {
-            msg_str.push_str(&format!("{}: {}\n", user.nick, user.score));
+            if !user.nick.is_empty() {
+                msg_str.push_str(&format!("{}: {}\n", user.nick, user.score));
+            }
         }
 
         let _ = msg
