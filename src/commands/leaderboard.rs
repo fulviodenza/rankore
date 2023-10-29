@@ -23,9 +23,14 @@ async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult
         let _ = msg
             .channel_id
             .send_message(&ctx.http, |m| {
-                m.reference_message(msg);
                 m.allowed_mentions(|am| am.replied_user(true));
-                m.content(msg_str);
+                m.add_embed(|embed| {
+                    embed
+                        .title("leaderboard")
+                        .description(msg_str)
+                        .colour((58, 8, 9))
+                })
+                .reference_message(msg);
                 m
             })
             .await;
