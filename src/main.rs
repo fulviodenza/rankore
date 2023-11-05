@@ -1,5 +1,6 @@
 use std::{collections::HashSet, env, sync::Arc};
 
+use crate::commands::help::HELP_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use crate::commands::set_welcome_msg::SET_WELCOME_MSG_COMMAND;
@@ -25,7 +26,7 @@ mod db;
 mod services;
 
 #[group]
-#[commands(set_prefix, leaderboard, set_welcome_msg)]
+#[commands(set_prefix, leaderboard, set_welcome_msg, help)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
