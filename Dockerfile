@@ -1,6 +1,7 @@
 FROM rust:latest
 
 WORKDIR /app
+ADD . /app
 
 COPY Cargo.toml Cargo.lock ./
 
