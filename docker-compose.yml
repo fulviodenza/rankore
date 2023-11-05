@@ -1,9 +1,22 @@
 version: "3.8"
 
 services:
+  bot:
+    build: 
+      context: .
+    networks:
+      - backend
+    command: >
+      cargo run
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
   postgres:
     image: "postgres:latest"
     container_name: postgres
+    networks:
+      - backend
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -14,3 +27,5 @@ services:
       - ./postgres_data:/var/lib/postgresql/data
 volumes:
   postgres_data:
+networks:
+  backend:
