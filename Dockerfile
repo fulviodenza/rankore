@@ -1,6 +1,10 @@
-FROM rust:1.70.0
-WORKDIR /usr/src/rankore
-COPY . .
+FROM rust:latest
+
+WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+
+COPY src/ ./src/
 RUN cargo build --release
-RUN chmod +x ./target/release/rankore
-CMD ["./target/release/rankore"]
+
+CMD ["target/release/rankore"]
