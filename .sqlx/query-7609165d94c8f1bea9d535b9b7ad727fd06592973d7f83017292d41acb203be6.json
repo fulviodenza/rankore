@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select * from users where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "score",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "nick",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "is_bot",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7609165d94c8f1bea9d535b9b7ad727fd06592973d7f83017292d41acb203be6"
+}

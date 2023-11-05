@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select * from guilds where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "prefix",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "welcome_msg",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "20c5b78c252ae15d57d87c764eb88801dffaf9bbb78ac21f7fdf1a609dc0323c"
+}
