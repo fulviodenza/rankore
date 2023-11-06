@@ -1,8 +1,6 @@
 FROM rust:latest
 
-WORKDIR /app
-ADD . /app
-
+WORKDIR rankore
 COPY Cargo.toml Cargo.lock ./
 
 COPY src/ ./src/
