@@ -37,7 +37,7 @@ pub trait UsersRepo {
     async fn get_user(&self, id: i64) -> User;
     async fn insert_user(&self, user: User);
     async fn update_user(pool: &Pool<Postgres>, id: User);
-    async fn get_users(&self) -> Vec<User>;
+    async fn get_users(&self) -> Result<Vec<User>, Error>;
 }
 
 #[async_trait]
@@ -130,11 +130,11 @@ impl UsersRepo for Users {
         }
     }
 
-    async fn get_users(&self) -> Vec<User> {
+    // TODO: Return Result<_, Error> more often :)
+    async fn get_users(&self) -> Result<Vec<User>, Error> {
         let result: Vec<PgRow> = sqlx::query("select * from users")
             .fetch_all(&self.pool)
-            .await
-            .unwrap();
+            .await?;
 
         let users_vec: Vec<User> = result
             .iter()
@@ -148,7 +148,7 @@ impl UsersRepo for Users {
             })
             .collect();
 
-        users_vec
+        Ok(users_vec)
     }
 }
 
