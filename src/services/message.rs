@@ -4,14 +4,14 @@ use serenity::{model::voice::VoiceState, prelude::Context};
 
 use crate::GlobalState;
 
-pub async fn increase_score(ctx: Arc<Context>, user_id: i64, nick: String, is_bot: bool) {
+pub async fn increase_score(ctx: Arc<Context>, user_id: i64, nick: String, is_bot: bool, guild_id: i64) {
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state_users = global_state.users.lock().await.clone();
         global_state_users
             .tx
             .send(crate::db::events::UserEvents::SentText(
-                user_id, nick, is_bot,
+                user_id, nick, is_bot, guild_id
             ))
             .unwrap();
         println!("user: {:?} sent message", user_id);
@@ -55,7 +55,7 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
                     false => {
                         global_state_users
                             .tx
-                            .send(crate::db::events::UserEvents::Joined(user_id, nick, is_bot))
+                            .send(crate::db::events::UserEvents::Joined(user_id, nick, is_bot, voice.guild_id.unwrap().0 as i64))
                             .unwrap();
                         active_users.insert(user_id);
                     }
