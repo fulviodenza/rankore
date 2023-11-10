@@ -1,17 +1,6 @@
 version: "3.8"
 
 services:
-  bot:
-    build: 
-      context: .
-    networks:
-      - backend
-    command: >
-      cargo run
-    depends_on:
-      - postgres
-    volumes:
-      - .:/app
   postgres:
     image: "postgres:latest"
     container_name: postgres
