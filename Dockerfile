@@ -1,4 +1,4 @@
-FROM rust:1.73.0-bookworm
+FROM rust:latest
 
 WORKDIR rankore
 
