@@ -6,6 +6,7 @@ use crate::db::users::UsersRepo;
 use crate::GlobalState;
 
 #[command]
+#[required_permissions(ADMINISTRATOR)]
 async fn reset_scores(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let data_read = ctx.data.read().await;
     let member = msg.member(&ctx.http).await.unwrap();

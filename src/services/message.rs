@@ -4,14 +4,20 @@ use serenity::{model::voice::VoiceState, prelude::Context};
 
 use crate::GlobalState;
 
-pub async fn increase_score(ctx: Arc<Context>, user_id: i64, nick: String, is_bot: bool, guild_id: i64) {
+pub async fn increase_score(
+    ctx: Arc<Context>,
+    user_id: i64,
+    nick: String,
+    is_bot: bool,
+    guild_id: i64,
+) {
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state_users = global_state.users.lock().await.clone();
         global_state_users
             .tx
             .send(crate::db::events::UserEvents::SentText(
-                user_id, nick, is_bot, guild_id
+                user_id, nick, is_bot, guild_id,
             ))
             .unwrap();
         println!("user: {:?} sent message", user_id);
@@ -22,7 +28,7 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
     let is_bot = voice.member.clone().unwrap().user.bot;
     let user_id = voice.user_id.0 as i64;
     if let Some(global_state) = ctx.data.read().await.get::<GlobalState>() {
-        let mut active_users = global_state.active_users.lock().await;
+        let mut active_users = global_state.active_voice_users.lock().await;
         if active_users.contains(&user_id) && voice.channel_id.is_none() {
             // the user left the channel
             let global_state_users = global_state.users.lock().await.clone();
@@ -55,7 +61,12 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
                     false => {
                         global_state_users
                             .tx
-                            .send(crate::db::events::UserEvents::Joined(user_id, nick, is_bot, voice.guild_id.unwrap().0 as i64))
+                            .send(crate::db::events::UserEvents::Joined(
+                                user_id,
+                                nick,
+                                is_bot,
+                                voice.guild_id.unwrap().0 as i64,
+                            ))
                             .unwrap();
                         active_users.insert(user_id);
                     }

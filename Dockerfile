@@ -9,6 +9,7 @@ COPY ./migrations ./migrations
 COPY README.md ./README.md
 
 RUN cargo install sqlx-cli
+ARG DATABASE_URL_EXTERNAL
 ARG DATABASE_URL
 RUN sqlx migrate run --database-url "${DATABASE_URL_EXTERNAL}"
 

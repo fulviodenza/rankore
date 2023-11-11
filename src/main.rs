@@ -14,7 +14,7 @@ use db::{
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
     model::{
-        prelude::{Message, Ready},
+        prelude::{Interaction, InteractionType, Message, Ready},
         voice::VoiceState,
     },
     prelude::{Context, EventHandler, GatewayIntents, TypeMapKey},
@@ -33,7 +33,11 @@ pub struct Bot;
 pub struct GlobalStateInner {
     guild: Arc<Mutex<Arc<Guilds>>>,
     users: Arc<Mutex<Arc<Users>>>,
-    pub active_users: Arc<Mutex<HashSet<i64>>>,
+    // active user is a cache which says if the user
+    // we are handling is hit in the database or if
+    // we need to start a new counter for this user
+    // because joined the voice chat
+    pub active_voice_users: Arc<Mutex<HashSet<i64>>>,
 }
 
 pub struct GlobalState {}
@@ -62,6 +66,16 @@ impl EventHandler for Handler {
 
     async fn ready(&self, _: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
+    }
+
+    async fn interaction_create(&self, _ctx: Context, interaction: Interaction) {
+        match interaction {
+            InteractionType::MessageComponent => {
+                println!("Received message");
+                return;
+            }
+            _ => return,
+        }
     }
 }
 
@@ -124,7 +138,7 @@ async fn main() {
         .type_map_insert::<GlobalState>(GlobalStateInner {
             guild: Arc::new(Mutex::new(Guilds::new(&pool).await)),
             users: Arc::new(Mutex::new(Users::new(&pool).await)),
-            active_users: Arc::new(Mutex::new(HashSet::new())),
+            active_voice_users: Arc::new(Mutex::new(HashSet::new())),
         })
         .await
         .expect("Error creating client");
