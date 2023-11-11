@@ -72,6 +72,7 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
     let db_url =
         env::var("DATABASE_URL").expect("Expected a token for database in the environment");
