@@ -56,8 +56,13 @@ impl EventHandler for Handler {
         .await
     }
 
-    async fn voice_state_update(&self, ctx: Context, state: VoiceState) {
-        crate::services::message::handle_voice(ctx, state).await
+    async fn voice_state_update(
+        &self,
+        ctx: Context,
+        _old_state: Option<VoiceState>,
+        new_state: VoiceState,
+    ) {
+        crate::services::message::handle_voice(ctx, new_state).await
     }
 
     async fn ready(&self, _: Context, ready: Ready) {
