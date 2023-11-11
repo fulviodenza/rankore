@@ -10,7 +10,7 @@ async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state = global_state.users.lock().await;
 
-        let mut users_vec = global_state.get_users().await?;
+        let mut users_vec = global_state.get_users(msg.guild_id.unwrap().0 as i64).await;
         users_vec.sort_by(|a: &crate::db::users::User, b| b.score.partial_cmp(&a.score).unwrap());
 
         let mut msg_str = "".to_string();

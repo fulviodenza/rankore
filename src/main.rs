@@ -2,6 +2,7 @@ use std::{collections::HashSet, env, sync::Arc};
 
 use crate::commands::help::HELP_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
+use crate::commands::reset_scores::RESET_SCORES_COMMAND;
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use crate::commands::set_welcome_msg::SET_WELCOME_MSG_COMMAND;
 
@@ -26,7 +27,7 @@ mod db;
 mod services;
 
 #[group]
-#[commands(set_prefix, leaderboard, set_welcome_msg, help)]
+#[commands(set_prefix, leaderboard, set_welcome_msg, help, reset_scores)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
@@ -50,6 +51,7 @@ impl EventHandler for Handler {
             msg.author.id.0 as i64,
             msg.author.name,
             msg.author.bot,
+            msg.guild_id.unwrap().0 as i64,
         )
         .await
     }
@@ -77,7 +79,11 @@ async fn main() {
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
-        | GatewayIntents::GUILD_VOICE_STATES;
+        | GatewayIntents::GUILD_VOICE_STATES
+        | GatewayIntents::GUILD_INTEGRATIONS
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS
+        | GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_MEMBERS;
     let framework = StandardFramework::new()
         .configure(|c| {
             c.dynamic_prefix(|ctx, msg| {

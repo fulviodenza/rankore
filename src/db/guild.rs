@@ -10,19 +10,19 @@ pub struct Guilds {
 #[derive(Debug, FromRow)]
 pub struct Guild {
     #[sqlx(default)]
-    id: i64,
+    id: Option<i64>,
     #[sqlx(default)]
     prefix: String,
     #[sqlx(default)]
-    welcome_msg: String,
+    welcome_msg: Option<String>,
 }
 
 impl Default for Guild {
     fn default() -> Self {
         Self {
-            id: 0,
+            id: Some(0),
             prefix: "!".to_string(),
-            welcome_msg: "Welcome!".to_string(),
+            welcome_msg: Some("Welcome!".to_string()),
         }
     }
 }

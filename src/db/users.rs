@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{postgres::PgRow, Error, FromRow, Pool, Postgres, Row};
+use sqlx::{Error, FromRow, Pool, Postgres};
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
     select,
@@ -29,15 +29,18 @@ pub struct User {
     pub nick: String,
     #[sqlx(default)]
     pub is_bot: bool,
+    #[sqlx(default)]
+    pub guild_id: i64,
 }
 
 #[async_trait]
 pub trait UsersRepo {
     async fn new(pool: &Pool<Postgres>) -> Arc<Self>;
-    async fn get_user(&self, id: i64) -> User;
+    // async fn get_user(&self, id: i64) -> User;
     async fn insert_user(&self, user: User);
     async fn update_user(pool: &Pool<Postgres>, id: User);
-    async fn get_users(&self) -> Result<Vec<User>, Error>;
+    async fn get_users(&self, guild_id: i64) -> Vec<User>;
+    async fn reset_scores(&self, guild_id: i64);
 }
 
 #[async_trait]
@@ -54,46 +57,15 @@ impl UsersRepo for Users {
         });
         users
     }
-    async fn get_user(&self, id: i64) -> User {
-        let temp_user: Result<User, Error> =
-            sqlx::query_as!(User, "select * from users where id = $1", id)
-                .fetch_one(&self.pool)
-                .await;
-        match temp_user {
-            Err(_) => {
-                let _ = sqlx::query!(
-                    "INSERT into users(id, score, nick) values ($1, $2, $3)",
-                    id as i64,
-                    0,
-                    ""
-                )
-                .execute(&self.pool)
-                .await;
-                return User {
-                    id,
-                    score: 0,
-                    nick: "".to_string(),
-                    is_bot: false,
-                };
-            }
-            Ok(u) => {
-                return User {
-                    id: u.id,
-                    score: u.score,
-                    nick: u.nick,
-                    is_bot: u.is_bot,
-                }
-            }
-        };
-    }
 
     async fn insert_user(&self, user: User) {
         let _ = sqlx::query!(
-            "INSERT into users(id, score, nick, is_bot) values ($1, $2, $3, $4)",
+            "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
             user.id as i64,
             user.score as i64,
             user.nick,
-            user.is_bot
+            user.is_bot,
+            user.guild_id,
         )
         .execute(&self.pool)
         .await;
@@ -107,10 +79,11 @@ impl UsersRepo for Users {
         match temp_user {
             Ok(u) => {
                 let _ = sqlx::query!(
-                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3 WHERE id = $4",
+                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3, guild_id = $4 WHERE id = $5",
                     u.score + 1 as i64,
                     user.nick,
                     user.is_bot,
+                    user.guild_id,
                     user.id as i64,
                 )
                 .execute(pool)
@@ -118,11 +91,12 @@ impl UsersRepo for Users {
             }
             Err(_) => {
                 let _ = sqlx::query!(
-                    "INSERT into users(id, score, nick, is_bot) values ($1, $2, $3, $4)",
+                    "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
                     user.id as i64,
                     0,
                     "",
                     user.is_bot,
+                    user.guild_id,
                 )
                 .execute(pool)
                 .await;
@@ -130,25 +104,35 @@ impl UsersRepo for Users {
         }
     }
 
-    // TODO: Return Result<_, Error> more often :)
-    async fn get_users(&self) -> Result<Vec<User>, Error> {
-        let result: Vec<PgRow> = sqlx::query("select * from users")
+    async fn get_users(&self, guild_id: i64) -> Vec<User> {
+        let result = sqlx::query_as!(User, "select * from users WHERE guild_id = $1", guild_id)
             .fetch_all(&self.pool)
-            .await?;
+            .await
+            .unwrap();
 
         let users_vec: Vec<User> = result
             .iter()
-            .map(|row| {
-                User {
-                    id: row.get(0),     // 0 -> 'id' column
-                    score: row.get(1),  // 1 -> 'score' column
-                    nick: row.get(2),   // 2 -> 'nick' column
-                    is_bot: row.get(3), // 3 -> 'is_bot' column
-                }
+            .map(|user| User {
+                id: user.id,
+                score: user.score,
+                nick: user.nick.clone(),
+                is_bot: user.is_bot,
+                guild_id: user.guild_id,
             })
             .collect();
 
-        Ok(users_vec)
+        users_vec
+    }
+
+    async fn reset_scores(&self, guild_id: i64) {
+        println!("got guild_id: {:?}", guild_id);
+        let _ = sqlx::query!(
+            "UPDATE users SET score = $1 WHERE guild_id = $2",
+            0,
+            guild_id
+        )
+        .execute(&self.pool)
+        .await;
     }
 }
 
@@ -162,7 +146,7 @@ impl Observer for Users {
             let users_pool = self.pool.clone();
 
             match event {
-                UserEvents::Joined(user_id, nick, is_bot) => {
+                UserEvents::Joined(user_id, nick, is_bot, guild_id) => {
                     let (tx, mut rx) = oneshot::channel::<()>();
                     hashmap.write().await.insert(user_id, tx);
                     tokio::spawn(async move {
@@ -171,7 +155,7 @@ impl Observer for Users {
 
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(2)) => {
-                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score:0 , nick: nick.clone(), is_bot})
+                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score: 0 , nick: nick.clone(), is_bot, guild_id})
                                     .await;
                                 },
                                 _ = &mut rx => {
@@ -188,7 +172,7 @@ impl Observer for Users {
                         let _ = sender.send(());
                     }
                 }
-                UserEvents::SentText(user_id, nick, is_bot) => {
+                UserEvents::SentText(user_id, nick, is_bot, guild_id) => {
                     Users::update_user(
                         &self.pool,
                         User {
@@ -196,6 +180,7 @@ impl Observer for Users {
                             score: 0,
                             nick,
                             is_bot,
+                            guild_id,
                         },
                     )
                     .await;

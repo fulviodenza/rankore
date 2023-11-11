@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub enum UserEvents {
-    Joined(i64, String, bool),
+    Joined(i64, String, bool, i64),
     Left(i64),
-    SentText(i64, String, bool),
+    SentText(i64, String, bool, i64),
 }
 
 #[async_trait]
