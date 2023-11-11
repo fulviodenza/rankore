@@ -1,11 +1,15 @@
 FROM rust:latest
 
 WORKDIR rankore
-COPY ./Cargo.toml .
 
+COPY ./Cargo.toml .
 COPY ./src ./src
 COPY .sqlx/ ./.sqlx/
+COPY ./migrations ./migrations
 COPY README.md ./README.md
-RUN SQLX_OFFLINE=true cargo build --release
 
+RUN cargo install sqlx-cli
+RUN sqlx migrate run --database-url "$DATABASE_URL"
+
+RUN SQLX_OFFLINE=true cargo build
 CMD ["target/release/rankore"]
