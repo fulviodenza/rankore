@@ -2,8 +2,11 @@ use std::{collections::HashSet, env, sync::Arc};
 
 use crate::commands::help::HELP_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
+use crate::commands::multipliers::MULTIPLIERS_COMMAND;
 use crate::commands::reset_scores::RESET_SCORES_COMMAND;
 use crate::commands::set_prefix::SET_PREFIX_COMMAND;
+use crate::commands::set_text_multiplier::SET_TEXT_MULTIPLIER_COMMAND;
+use crate::commands::set_voice_multiplier::SET_VOICE_MULTIPLIER_COMMAND;
 use crate::commands::set_welcome_msg::SET_WELCOME_MSG_COMMAND;
 
 use async_trait::async_trait;
@@ -27,7 +30,16 @@ mod db;
 mod services;
 
 #[group]
-#[commands(set_prefix, leaderboard, set_welcome_msg, help, reset_scores)]
+#[commands(
+    set_prefix,
+    leaderboard,
+    set_welcome_msg,
+    help,
+    reset_scores,
+    set_voice_multiplier,
+    set_text_multiplier,
+    multipliers
+)]
 pub struct Bot;
 
 pub struct GlobalStateInner {
