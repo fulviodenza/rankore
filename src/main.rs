@@ -1,6 +1,5 @@
 use std::{collections::HashSet, env, sync::Arc};
 
-use crate::commands::help::HELP_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::multipliers::MULTIPLIERS_COMMAND;
 use crate::commands::reset_scores::RESET_SCORES_COMMAND;
@@ -8,6 +7,8 @@ use crate::commands::set_prefix::SET_PREFIX_COMMAND;
 use crate::commands::set_text_multiplier::SET_TEXT_MULTIPLIER_COMMAND;
 use crate::commands::set_voice_multiplier::SET_VOICE_MULTIPLIER_COMMAND;
 use crate::commands::set_welcome_msg::SET_WELCOME_MSG_COMMAND;
+use crate::services::message::init_active_users;
+use crate::{commands::help::HELP_COMMAND, services::message::VoiceStateReady};
 
 use async_trait::async_trait;
 use db::{
@@ -17,12 +18,13 @@ use db::{
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
     model::{
-        prelude::{Message, Ready},
+        prelude::{ChannelType, Message, Ready},
         voice::VoiceState,
     },
     prelude::{Context, EventHandler, GatewayIntents, TypeMapKey},
     Client,
 };
+
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Mutex;
 mod commands;
@@ -43,7 +45,7 @@ mod services;
 pub struct Bot;
 
 pub struct GlobalStateInner {
-    guild: Arc<Mutex<Arc<Guilds>>>,
+    guilds: Arc<Mutex<Arc<Guilds>>>,
     users: Arc<Mutex<Arc<Users>>>,
     pub active_users: Arc<Mutex<HashSet<i64>>>,
 }
@@ -79,8 +81,43 @@ impl EventHandler for Handler {
         crate::services::message::handle_voice(ctx, new_state).await
     }
 
-    async fn ready(&self, _: Context, ready: Ready) {
+    async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
+
+        if let Some(global_state) = ctx.data.read().await.get::<GlobalState>() {
+            let guilds = global_state.guilds.lock().await.guilds().await.unwrap();
+            let guild_ids: Vec<i64> = guilds.into_iter().map(|guild| guild.id.unwrap()).collect();
+            for id in guild_ids {
+                let g = ctx.http.get_guild(id as u64).await;
+                match g {
+                    // let http_ctx =
+                    Ok(_) => {
+                        if let Ok(channels) = g.unwrap().channels(&ctx.http).await {
+                            for c in channels {
+                                if c.1.kind == ChannelType::Voice {
+                                    let members = c.1.members(&ctx.cache).await.unwrap();
+                                    for m in members {
+                                        init_active_users(
+                                            ctx.clone(),
+                                            VoiceStateReady {
+                                                member: m.clone(),
+                                                user_id: m.user.id,
+                                                channel_id: c.0,
+                                                guild_id: c.1.guild_id,
+                                            },
+                                        )
+                                        .await
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        continue;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -114,7 +151,7 @@ async fn main() {
                     let data = ctx.data.write().await;
                     let global_state = data.get::<GlobalState>();
 
-                    let guild = global_state.unwrap().guild.lock().await;
+                    let guild = global_state.unwrap().guilds.lock().await;
                     let prefix = guild.get_prefix(guild_id).await;
 
                     let prefix = Some(prefix);
@@ -140,12 +177,16 @@ async fn main() {
             })
         })
         .group(&BOT_GROUP);
+
+    let guilds_pool = Arc::new(Mutex::new(Guilds::new(&pool).await));
+    let users_pool = Arc::new(Mutex::new(Users::new(&pool).await));
+
     let mut client = Client::builder(token, intents)
         .event_handler(Handler)
         .framework(framework)
         .type_map_insert::<GlobalState>(GlobalStateInner {
-            guild: Arc::new(Mutex::new(Guilds::new(&pool).await)),
-            users: Arc::new(Mutex::new(Users::new(&pool).await)),
+            guilds: guilds_pool,
+            users: users_pool,
             active_users: Arc::new(Mutex::new(HashSet::new())),
         })
         .await

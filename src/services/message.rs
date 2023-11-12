@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
-use serenity::{model::voice::VoiceState, prelude::Context};
+use serenity::{
+    model::{
+        prelude::{ChannelId, GuildId, Member, UserId},
+        voice::VoiceState,
+    },
+    prelude::Context,
+};
 
 use crate::{db::guilds::GuildRepo, GlobalState};
 
@@ -15,7 +21,7 @@ pub async fn increase_score(
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state_users = global_state.users.lock().await.clone();
         let multiplier_result = global_state
-            .guild
+            .guilds
             .lock()
             .await
             .get_text_multiplier(guild_id)
@@ -40,7 +46,7 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
     let user_id = voice.user_id.0 as i64;
     if let Some(global_state) = ctx.data.read().await.get::<GlobalState>() {
         let mut active_users = global_state.active_users.lock().await;
-        let guilds = global_state.guild.lock().await;
+        let guilds = global_state.guilds.lock().await;
         if active_users.contains(&user_id) && voice.channel_id.is_none() {
             // the user left the channel
             let global_state_users = global_state.users.lock().await.clone();
@@ -93,5 +99,50 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
         } else {
             println!("Nothing to do!");
         }
+    }
+}
+
+pub struct VoiceStateReady {
+    pub member: Member,
+    pub user_id: UserId,
+    pub channel_id: ChannelId,
+    pub guild_id: GuildId,
+}
+
+pub async fn init_active_users(ctx: Context, voice: VoiceStateReady) {
+    if let Some(global_state) = ctx.data.read().await.get::<GlobalState>() {
+        let mut active_users = global_state.active_users.lock().await;
+        let guilds = global_state.guilds.lock().await;
+        active_users.insert(voice.user_id.0 as i64);
+
+        let mut multiplier = 1;
+        let multiplier_result = guilds.get_voice_multiplier(voice.guild_id.0 as i64).await;
+        if let Ok(r) = multiplier_result {
+            multiplier = r
+        }
+
+        let nick: String;
+        match ctx.http.get_user(voice.user_id.0).await {
+            Ok(u) => match u.nick_in(ctx.http, voice.guild_id).await {
+                Some(n) => nick = n,
+                None => nick = u.name,
+            },
+            Err(_) => {
+                return;
+            }
+        }
+        global_state
+            .users
+            .lock()
+            .await
+            .tx
+            .send(crate::db::events::UserEvents::Joined(
+                voice.user_id.0 as i64,
+                nick,
+                voice.member.user.bot,
+                voice.guild_id.0 as i64,
+                multiplier,
+            ))
+            .unwrap();
     }
 }
