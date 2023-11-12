@@ -15,6 +15,8 @@ pub struct Guild {
     prefix: String,
     #[sqlx(default)]
     welcome_msg: Option<String>,
+    #[sqlx(default)]
+    voice_multiplier: i64,
 }
 
 impl Default for Guild {
@@ -23,6 +25,7 @@ impl Default for Guild {
             id: Some(0),
             prefix: "!".to_string(),
             welcome_msg: Some("Welcome!".to_string()),
+            voice_multiplier: 1,
         }
     }
 }
@@ -33,6 +36,12 @@ pub trait GuildRepo {
     async fn set_prefix(&self, guild_id: i64, prefix: &str);
     async fn get_prefix(&self, guild_id: i64) -> String;
     async fn set_welcome_msg(&self, guild_id: i64, welcome_msg: &str);
+    async fn set_voice_multiplier(
+        &self,
+        guild_id: i64,
+        voice_multiplier: i64,
+    ) -> Result<bool, Error>;
+    async fn get_voice_multiplier(&self, guild_id: i64) -> Result<i64, Error>;
 }
 
 #[async_trait]
@@ -105,6 +114,48 @@ impl GuildRepo for Guilds {
                 return "!".to_string();
             }
             Ok(g) => return g.prefix.to_string(),
+        };
+    }
+    async fn set_voice_multiplier(
+        &self,
+        guild_id: i64,
+        voice_multiplier: i64,
+    ) -> Result<bool, Error> {
+        let result = sqlx::query!(
+            "UPDATE guilds SET voice_multiplier = $1 WHERE id = $2",
+            voice_multiplier,
+            guild_id
+        )
+        .execute(&self.pool)
+        .await;
+
+        match result {
+            Ok(_) => return Ok(true),
+            Err(_) => return Ok(false),
+        };
+    }
+    async fn get_voice_multiplier(&self, guild_id: i64) -> Result<i64, Error> {
+        let result = sqlx::query_as!(Guild, "select * FROM guilds WHERE id = $1", guild_id)
+            .fetch_one(&self.pool)
+            .await;
+
+        match result {
+            Ok(guild) => {
+                println!("got something");
+                return Ok(guild.voice_multiplier);
+            }
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into guilds(id, prefix, welcome_msg, voice_multiplier) values ($1, $2, $3, $4)",
+                    guild_id as i64,
+                    "!",
+                    "",
+                    1,
+                )
+                .execute(&self.pool)
+                .await;
+                return Ok(1);
+            }
         };
     }
 }
