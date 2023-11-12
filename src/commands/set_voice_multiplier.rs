@@ -19,7 +19,7 @@ async fn set_voice_multiplier(ctx: &Context, msg: &Message, args: Args) -> Comma
         "You don't have permissions to change voice multiplier!".to_string();
 
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let guild_state = global_state.guild.lock().await;
+        let guild_state = global_state.guilds.lock().await;
 
         if guild_state
             .set_voice_multiplier(msg.guild_id.unwrap().0 as i64, multiplier)

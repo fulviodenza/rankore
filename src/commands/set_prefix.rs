@@ -13,7 +13,7 @@ async fn set_prefix(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let new_prefix = cloned_args.single_quoted::<String>().unwrap_or_default();
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let global_state = global_state.guild.lock().await;
+        let global_state = global_state.guilds.lock().await;
         let _ = global_state
             .set_prefix(
                 if let Some(guild_id) = msg.guild_id {

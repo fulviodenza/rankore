@@ -9,7 +9,7 @@ use serenity::{model::prelude::Message, prelude::Context};
 async fn multipliers(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
-        let global_state = global_state.guild.lock().await;
+        let global_state = global_state.guilds.lock().await;
         let text_multiplier_result = global_state
             .get_text_multiplier(msg.guild_id.unwrap().0 as i64)
             .await;

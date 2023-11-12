@@ -10,7 +10,7 @@ pub struct Guilds {
 #[derive(Debug, FromRow)]
 pub struct Guild {
     #[sqlx(default)]
-    id: Option<i64>,
+    pub id: Option<i64>,
     #[sqlx(default)]
     prefix: String,
     #[sqlx(default)]
@@ -47,6 +47,7 @@ pub trait GuildRepo {
     async fn get_voice_multiplier(&self, guild_id: i64) -> Result<i64, Error>;
     async fn set_text_multiplier(&self, guild_id: i64, multiplier: i64) -> Result<bool, Error>;
     async fn get_text_multiplier(&self, guild_id: i64) -> Result<i64, Error>;
+    async fn guilds(&self) -> Result<Vec<Guild>, Error>;
 }
 
 #[async_trait]
@@ -199,6 +200,20 @@ impl GuildRepo for Guilds {
                 .execute(&self.pool)
                 .await;
                 return Ok(1);
+            }
+        };
+    }
+    async fn guilds(&self) -> Result<Vec<Guild>, Error> {
+        let result = sqlx::query_as!(Guild, "select * FROM guilds")
+            .fetch_all(&self.pool)
+            .await;
+
+        match result {
+            Ok(res) => {
+                return Ok(res);
+            }
+            Err(e) => {
+                return Err(e);
             }
         };
     }
