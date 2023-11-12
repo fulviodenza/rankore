@@ -36,7 +36,6 @@ pub struct User {
 #[async_trait]
 pub trait UsersRepo {
     async fn new(pool: &Pool<Postgres>) -> Arc<Self>;
-    // async fn get_user(&self, id: i64) -> User;
     async fn insert_user(&self, user: User);
     async fn update_user(pool: &Pool<Postgres>, id: User);
     async fn get_users(&self, guild_id: i64) -> Vec<User>;
@@ -61,8 +60,8 @@ impl UsersRepo for Users {
     async fn insert_user(&self, user: User) {
         let _ = sqlx::query!(
             "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
-            user.id as i64,
-            user.score as i64,
+            user.id,
+            user.score,
             user.nick,
             user.is_bot,
             user.guild_id,
@@ -73,18 +72,18 @@ impl UsersRepo for Users {
 
     async fn update_user(pool: &Pool<Postgres>, user: User) {
         let temp_user: Result<User, Error> =
-            sqlx::query_as!(User, "select * from users where id = $1", user.id as i64)
+            sqlx::query_as!(User, "select * from users where id = $1", user.id)
                 .fetch_one(pool)
                 .await;
         match temp_user {
             Ok(u) => {
                 let _ = sqlx::query!(
                     "UPDATE users SET  score = $1, nick = $2, is_bot = $3, guild_id = $4 WHERE id = $5",
-                    u.score + 1 as i64,
+                    u.score + 1,
                     user.nick,
                     user.is_bot,
                     user.guild_id,
-                    user.id as i64,
+                    user.id ,
                 )
                 .execute(pool)
                 .await;
@@ -92,7 +91,7 @@ impl UsersRepo for Users {
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
-                    user.id as i64,
+                    user.id,
                     0,
                     "",
                     user.is_bot,

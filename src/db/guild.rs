@@ -58,7 +58,7 @@ impl GuildRepo for Guilds {
         let result = sqlx::query!(
             "UPDATE guilds SET prefix = $1 WHERE id = $2",
             prefix,
-            guild_id as i64
+            guild_id
         )
         .fetch_one(&self.pool)
         .await;
@@ -68,7 +68,7 @@ impl GuildRepo for Guilds {
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into guilds(id, prefix, welcome_msg) values ($1, $2, $3)",
-                    guild_id as i64,
+                    guild_id,
                     prefix,
                     "",
                 )
@@ -82,7 +82,7 @@ impl GuildRepo for Guilds {
             Guild,
             "UPDATE guilds SET welcome_msg = $1 WHERE id = $2",
             welcome_msg,
-            guild_id as i64
+            guild_id
         )
         .fetch_one(&self.pool)
         .await;
@@ -92,7 +92,7 @@ impl GuildRepo for Guilds {
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into guilds(id, prefix, welcome_msg) values ($1, $2, $3)",
-                    guild_id as i64,
+                    guild_id,
                     "!",
                     welcome_msg,
                 )
@@ -110,7 +110,7 @@ impl GuildRepo for Guilds {
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into guilds(id, prefix, welcome_msg) values ($1, $2, $3)",
-                    guild_id as i64,
+                    guild_id,
                     "!",
                     "Welcome!"
                 )
@@ -152,7 +152,7 @@ impl GuildRepo for Guilds {
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into guilds(id, prefix, welcome_msg, voice_multiplier) values ($1, $2, $3, $4)",
-                    guild_id as i64,
+                    guild_id,
                     "!",
                     "",
                     1,
@@ -191,7 +191,7 @@ impl GuildRepo for Guilds {
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into guilds(id, prefix, welcome_msg, voice_multiplier, text_multiplier) values ($1, $2, $3, $4, $5)",
-                    guild_id as i64,
+                    guild_id,
                     "!",
                     "",
                     1,
