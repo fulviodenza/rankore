@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT into guilds(id, prefix, welcome_msg, voice_multiplier, text_multiplier) values ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8b64df2fbd9c02683dcb09360ab90cff1d01036b2985383b8275c42674f39ce8"
+}
