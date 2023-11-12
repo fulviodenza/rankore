@@ -1,3 +1,3 @@
 pub mod events;
-pub mod guild;
+pub mod guilds;
 pub mod users;

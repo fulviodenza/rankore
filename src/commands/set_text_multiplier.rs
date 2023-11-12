@@ -1,4 +1,5 @@
-use crate::db::guild::GuildRepo;
+use crate::commands::send_message;
+use crate::db::guilds::GuildRepo;
 use crate::GlobalState;
 use serenity::framework::standard::macros::command;
 use serenity::framework::standard::{Args, CommandResult};
@@ -31,13 +32,6 @@ async fn set_text_multiplier(ctx: &Context, msg: &Message, args: Args) -> Comman
             Err(_) => {}
         }
     }
-    let _ = msg
-        .channel_id
-        .send_message(&ctx.http, |m| {
-            m.allowed_mentions(|am| am.replied_user(true));
-            m.add_embed(|embed| embed.description(outgoing_msg).colour((58, 8, 9)));
-            m
-        })
-        .await;
+    send_message(ctx, msg, outgoing_msg).await;
     Ok(())
 }

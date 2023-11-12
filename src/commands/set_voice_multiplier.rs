@@ -1,4 +1,5 @@
-use crate::db::guild::GuildRepo;
+use crate::commands::send_message;
+use crate::db::guilds::GuildRepo;
 use crate::GlobalState;
 use serenity::framework::standard::macros::command;
 use serenity::framework::standard::{Args, CommandResult};
@@ -20,24 +21,13 @@ async fn set_voice_multiplier(ctx: &Context, msg: &Message, args: Args) -> Comma
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let guild_state = global_state.guild.lock().await;
 
-        match guild_state
+        if guild_state
             .set_voice_multiplier(msg.guild_id.unwrap().0 as i64, multiplier)
-            .await
+            .await?
         {
-            Ok(true) => {
-                outgoing_msg = "Voice multiplier set".to_string();
-            }
-            Ok(false) => {}
-            Err(_) => {}
+            outgoing_msg = "Voice multiplier set".to_string();
         }
     }
-    let _ = msg
-        .channel_id
-        .send_message(&ctx.http, |m| {
-            m.allowed_mentions(|am| am.replied_user(true));
-            m.add_embed(|embed| embed.description(outgoing_msg).colour((58, 8, 9)));
-            m
-        })
-        .await;
+    send_message(ctx, msg, outgoing_msg).await;
     Ok(())
 }

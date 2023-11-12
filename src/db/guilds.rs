@@ -185,7 +185,6 @@ impl GuildRepo for Guilds {
 
         match result {
             Ok(guild) => {
-                println!("got something");
                 return Ok(guild.text_multiplier);
             }
             Err(_) => {

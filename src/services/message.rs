@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serenity::{model::voice::VoiceState, prelude::Context};
 
-use crate::{db::guild::GuildRepo, GlobalState};
+use crate::{db::guilds::GuildRepo, GlobalState};
 
 pub async fn increase_score(
     ctx: Arc<Context>,
