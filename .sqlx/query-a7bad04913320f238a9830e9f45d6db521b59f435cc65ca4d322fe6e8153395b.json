@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * from guilds where id = $1",
+  "query": "select * FROM guilds WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -42,5 +42,5 @@
       false
     ]
   },
-  "hash": "20c5b78c252ae15d57d87c764eb88801dffaf9bbb78ac21f7fdf1a609dc0323c"
+  "hash": "a7bad04913320f238a9830e9f45d6db521b59f435cc65ca4d322fe6e8153395b"
 }
