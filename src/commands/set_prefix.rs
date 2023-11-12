@@ -3,7 +3,8 @@ use serenity::framework::standard::macros::command;
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::{model::prelude::Message, prelude::Context};
 
-use crate::db::guild::GuildRepo;
+use crate::commands::send_message;
+use crate::db::guilds::GuildRepo;
 use crate::GlobalState;
 
 #[command]
@@ -23,15 +24,7 @@ async fn set_prefix(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 &new_prefix,
             )
             .await;
-        let _ = msg
-            .channel_id
-            .send_message(&ctx.http, |m| {
-                m.reference_message(msg);
-                m.allowed_mentions(|am| am.replied_user(true));
-                m.content("prefix updated");
-                m
-            })
-            .await;
+        send_message(ctx, msg, "prefix updated!".to_string()).await;
     }
     Ok(())
 }

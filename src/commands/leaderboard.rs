@@ -1,3 +1,4 @@
+use crate::commands::send_titled_message;
 use crate::db::users::UsersRepo;
 use crate::GlobalState;
 use serenity::framework::standard::macros::command;
@@ -19,21 +20,7 @@ async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult
                 msg_str.push_str(&format!("{}: {}\n", user.nick, user.score));
             }
         }
-
-        let _ = msg
-            .channel_id
-            .send_message(&ctx.http, |m| {
-                m.allowed_mentions(|am| am.replied_user(true));
-                m.add_embed(|embed| {
-                    embed
-                        .title("leaderboard")
-                        .description(msg_str)
-                        .colour((58, 8, 9))
-                })
-                .reference_message(msg);
-                m
-            })
-            .await;
+        send_titled_message(ctx, msg, "leaderboard".to_string(), msg_str).await;
     }
     Ok(())
 }

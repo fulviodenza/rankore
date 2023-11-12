@@ -11,7 +11,7 @@ use crate::commands::set_welcome_msg::SET_WELCOME_MSG_COMMAND;
 
 use async_trait::async_trait;
 use db::{
-    guild::{GuildRepo, Guilds},
+    guilds::{GuildRepo, Guilds},
     users::{Users, UsersRepo},
 };
 use serenity::{
@@ -58,6 +58,8 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
+        // For each message received, increase the score
+        // of the interacting user
         crate::services::message::increase_score(
             Arc::new(ctx),
             msg.author.id.0 as i64,
@@ -84,16 +86,18 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    // Database settings
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-    let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
     let db_url =
         env::var("DATABASE_URL").expect("Expected a token for database in the environment");
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(50)
         .connect(&db_url)
         .await
         .unwrap();
 
+    // Discord settings
+    let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT

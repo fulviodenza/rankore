@@ -3,7 +3,8 @@ use serenity::framework::standard::macros::command;
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::{model::prelude::Message, prelude::Context};
 
-use crate::db::guild::GuildRepo;
+use crate::commands::send_message;
+use crate::db::guilds::GuildRepo;
 use crate::GlobalState;
 
 #[command]
@@ -25,5 +26,6 @@ async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandRes
             )
             .await;
     }
+    send_message(ctx, msg, "welcome message set".to_string()).await;
     Ok(())
 }
