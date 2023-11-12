@@ -14,10 +14,21 @@ pub async fn increase_score(
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state_users = global_state.users.lock().await.clone();
+        let multiplier_result = global_state
+            .guild
+            .lock()
+            .await
+            .get_text_multiplier(guild_id)
+            .await;
+
+        let mut multiplier = 1;
+        if let Ok(mult) = multiplier_result {
+            multiplier = mult
+        }
         global_state_users
             .tx
             .send(crate::db::events::UserEvents::SentText(
-                user_id, nick, is_bot, guild_id,
+                user_id, nick, is_bot, guild_id, multiplier,
             ))
             .unwrap();
         println!("user: {:?} sent message", user_id);

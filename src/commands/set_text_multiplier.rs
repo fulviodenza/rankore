@@ -6,7 +6,7 @@ use serenity::{model::prelude::Message, prelude::Context};
 
 #[command]
 #[required_permissions(ADMINISTRATOR)]
-async fn set_voice_multiplier(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+async fn set_text_multiplier(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let multiplier = args
         .clone()
         .single_quoted::<String>()
@@ -15,17 +15,17 @@ async fn set_voice_multiplier(ctx: &Context, msg: &Message, args: Args) -> Comma
         .unwrap();
     let data_read = ctx.data.read().await;
     let mut outgoing_msg: String =
-        "You don't have permissions to change voice multiplier!".to_string();
+        "You don't have permissions to change text multiplier!".to_string();
 
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let guild_state = global_state.guild.lock().await;
 
         match guild_state
-            .set_voice_multiplier(msg.guild_id.unwrap().0 as i64, multiplier)
+            .set_text_multiplier(msg.guild_id.unwrap().0 as i64, multiplier)
             .await
         {
             Ok(true) => {
-                outgoing_msg = "Voice multiplier set".to_string();
+                outgoing_msg = "Text multiplier set".to_string();
             }
             Ok(false) => {}
             Err(_) => {}

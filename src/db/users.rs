@@ -125,7 +125,6 @@ impl UsersRepo for Users {
     }
 
     async fn reset_scores(&self, guild_id: i64) {
-        println!("got guild_id: {:?}", guild_id);
         let _ = sqlx::query!(
             "UPDATE users SET score = $1 WHERE guild_id = $2",
             0,
@@ -173,12 +172,12 @@ impl Observer for Users {
                         let _ = sender.send(());
                     }
                 }
-                UserEvents::SentText(user_id, nick, is_bot, guild_id) => {
+                UserEvents::SentText(user_id, nick, is_bot, guild_id, multiplier) => {
                     Users::update_user(
                         &self.pool,
                         User {
                             id: user_id,
-                            score: 0,
+                            score: multiplier,
                             nick,
                             is_bot,
                             guild_id,
