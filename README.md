@@ -1,8 +1,10 @@
 # rankore
 A discord bot to track user activity in a Discord server.
-This bot is currently tracking voice and text user activity into a Discord server.
-[Link](https://discord.com/oauth2/authorize?client_id=1161409490369912924&permissions=8&scope=bot)
+This bot is currently tracking voice and text user activity into a Discord server.<br>
 
+[Invite me!](https://discord.com/oauth2/authorize?client_id=1161409490369912924&permissions=8&scope=bot)
+ or Join the official [rankore Discord server](https://discord.gg/jfSvzPDY)!
+ 
 ## Commands
 - `!leaderboard`: List the users and their points, from the most active to the less active;
 - `!set_prefix [PREFIX]`: Set the prefix for the Discord server in which the bot is running; (After this command the default `!` prefix will not be active, replaced by the one you set)
