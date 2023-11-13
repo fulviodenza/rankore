@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * from users where id = $1",
+  "query": "select * from users where id = $1 and guild_id = $2",
   "describe": {
     "columns": [
       {
@@ -31,6 +31,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int8",
         "Int8"
       ]
     },
@@ -42,5 +43,5 @@
       false
     ]
   },
-  "hash": "7609165d94c8f1bea9d535b9b7ad727fd06592973d7f83017292d41acb203be6"
+  "hash": "832f683f00438a244876f5ee3a018ce2b7e621c3bb88d84687ca9afc64c11852"
 }
