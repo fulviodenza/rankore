@@ -157,6 +157,7 @@ impl Observer for Users {
 
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(multiplier as u64)) => {
+                                    println!("increasing with: {:?} multiplier", multiplier);
                                     db::users::Users::update_user(&user_pool_clone, User { id: user_id, score: 0, nick: nick.clone(), is_bot, guild_id})
                                     .await;
                                 },
