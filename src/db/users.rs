@@ -71,10 +71,14 @@ impl UsersRepo for Users {
     }
 
     async fn update_user(pool: &Pool<Postgres>, user: User) {
-        let temp_user: Result<User, Error> =
-            sqlx::query_as!(User, "select * from users where id = $1", user.id)
-                .fetch_one(pool)
-                .await;
+        let temp_user: Result<User, Error> = sqlx::query_as!(
+            User,
+            "select * from users where id = $1 and guild_id = $2",
+            user.id,
+            user.guild_id
+        )
+        .fetch_one(pool)
+        .await;
         match temp_user {
             Ok(u) => {
                 let _ = sqlx::query!(
@@ -83,7 +87,7 @@ impl UsersRepo for Users {
                     user.nick,
                     user.is_bot,
                     user.guild_id,
-                    user.id ,
+                    user.id,
                 )
                 .execute(pool)
                 .await;
@@ -153,7 +157,7 @@ impl Observer for Users {
 
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(multiplier as u64)) => {
-                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score: 0 , nick: nick.clone(), is_bot, guild_id})
+                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score: 0, nick: nick.clone(), is_bot, guild_id})
                                     .await;
                                 },
                                 _ = &mut rx => {

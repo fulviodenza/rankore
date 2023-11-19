@@ -24,7 +24,6 @@ use serenity::{
     prelude::{Context, EventHandler, GatewayIntents, TypeMapKey},
     Client,
 };
-
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Mutex;
 mod commands;
