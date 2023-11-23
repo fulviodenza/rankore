@@ -1,5 +1,6 @@
 use serenity::{model::prelude::Message, prelude::Context};
 
+pub mod giveaway;
 pub mod help;
 pub mod leaderboard;
 pub mod multipliers;

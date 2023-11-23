@@ -1,5 +1,6 @@
 use std::{collections::HashSet, env, sync::Arc};
 
+use crate::commands::giveaway::GIVEAWAY_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::multipliers::MULTIPLIERS_COMMAND;
 use crate::commands::reset_scores::RESET_SCORES_COMMAND;
@@ -39,7 +40,8 @@ mod services;
     reset_scores,
     set_voice_multiplier,
     set_text_multiplier,
-    multipliers
+    multipliers,
+    giveaway
 )]
 pub struct Bot;
 
