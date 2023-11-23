@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use redis::Commands;
 use serenity::{
     client::Context,
     framework::standard::{macros::command, Args, CommandResult},
@@ -7,7 +8,7 @@ use serenity::{
 };
 use sqlx::types::chrono::Local;
 
-use crate::commands::send_message;
+use crate::{commands::send_message, GlobalState};
 
 #[command]
 async fn giveaway(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
@@ -26,6 +27,19 @@ async fn giveaway(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     };
 
     let schedule = now + Duration::new(duration, 0);
+    let data_read: tokio::sync::RwLockReadGuard<'_, serenity::prelude::TypeMap> =
+        ctx.data.read().await;
+    if let Some(global_state) = data_read.get::<GlobalState>() {
+        let mut redis_state = global_state.redis.lock().await;
+        let key = msg.guild_id.unwrap().0.to_string();
+        redis_state
+            .set::<String, String, String>(key.clone(), "OK".to_string())
+            .unwrap();
+        let _ = redis_state.expire_at::<std::string::String, String>(
+            key,
+            schedule.timestamp_subsec_nanos() as usize,
+        );
+    }
     let outgoing_msg = format!(
         "event created with following schedule: {:?}",
         schedule.to_string(),

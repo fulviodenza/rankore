@@ -49,6 +49,7 @@ pub struct GlobalStateInner {
     guilds: Arc<Mutex<Arc<Guilds>>>,
     users: Arc<Mutex<Arc<Users>>>,
     pub active_users: Arc<Mutex<HashSet<i64>>>,
+    pub redis: Arc<Mutex<redis::Connection>>,
 }
 
 pub struct GlobalState {}
@@ -91,7 +92,6 @@ impl EventHandler for Handler {
             for id in guild_ids {
                 let g = ctx.http.get_guild(id as u64).await;
                 match g {
-                    // let http_ctx =
                     Ok(_) => {
                         if let Ok(channels) = g.unwrap().channels(&ctx.http).await {
                             for c in channels {
@@ -133,6 +133,10 @@ async fn main() {
         .connect(&db_url)
         .await
         .unwrap();
+
+    // Redis settings
+    let redis_client = redis::Client::open("redis://127.0.0.1:6379");
+    let con: redis::Connection = redis_client.unwrap().get_connection().unwrap();
 
     // Discord settings
     let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
@@ -189,6 +193,7 @@ async fn main() {
             guilds: guilds_pool,
             users: users_pool,
             active_users: Arc::new(Mutex::new(HashSet::new())),
+            redis: Arc::new(Mutex::new(con)),
         })
         .await
         .expect("Error creating client");

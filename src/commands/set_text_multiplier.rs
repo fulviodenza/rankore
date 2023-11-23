@@ -14,10 +14,11 @@ async fn set_text_multiplier(ctx: &Context, msg: &Message, args: Args) -> Comman
         .unwrap_or_default()
         .parse::<i64>()
         .unwrap();
-    let data_read = ctx.data.read().await;
     let mut outgoing_msg: String =
         "You don't have permissions to change text multiplier!".to_string();
 
+    let data_read: tokio::sync::RwLockReadGuard<'_, serenity::prelude::TypeMap> =
+        ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let guild_state = global_state.guilds.lock().await;
 
