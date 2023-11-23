@@ -1,7 +1,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sqlx::{Error, FromRow, Pool, Postgres};
+use sqlx::{
+    types::{
+        chrono::{self, DateTime, Utc},
+        uuid::Timestamp,
+    },
+    Error, FromRow, Pool, Postgres,
+};
 
 pub struct Guilds {
     pub pool: Pool<Postgres>,
@@ -19,6 +25,8 @@ pub struct Guild {
     voice_multiplier: i64,
     #[sqlx(default)]
     text_multiplier: i64,
+    #[sqlx(default)]
+    giveaway_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Default for Guild {
@@ -29,6 +37,7 @@ impl Default for Guild {
             welcome_msg: Some("Welcome!".to_string()),
             voice_multiplier: 1,
             text_multiplier: 1,
+            giveaway_timestamp: None,
         }
     }
 }
@@ -103,10 +112,19 @@ impl GuildRepo for Guilds {
         }
     }
     async fn get_prefix(&self, guild_id: i64) -> String {
-        let guild: Result<Guild, Error> =
-            sqlx::query_as!(Guild, "select * from guilds where id = $1", guild_id)
-                .fetch_one(&self.pool)
-                .await;
+        let guild: Result<Option<Guild>, sqlx::Error> = sqlx::query_as!(
+            Guild,
+            r#"
+            SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier,
+                   COALESCE(giveaway_timestamp AT TIME ZONE 'UTC', NULL) as giveaway_timestamp
+            FROM guilds
+            WHERE id = $1
+            "#,
+            guild_id
+        )
+        .fetch_optional(&self.pool)
+        .await;
+
         match guild {
             Err(_) => {
                 let _ = sqlx::query!(
@@ -119,7 +137,7 @@ impl GuildRepo for Guilds {
                 .await;
                 return "!".to_string();
             }
-            Ok(g) => return g.prefix.to_string(),
+            Ok(g) => return g.unwrap().prefix.to_string(),
         };
     }
     async fn set_voice_multiplier(
@@ -141,14 +159,23 @@ impl GuildRepo for Guilds {
         };
     }
     async fn get_voice_multiplier(&self, guild_id: i64) -> Result<i64, Error> {
-        let result = sqlx::query_as!(Guild, "select * FROM guilds WHERE id = $1", guild_id)
-            .fetch_one(&self.pool)
-            .await;
+        let result: Result<Option<Guild>, sqlx::Error> = sqlx::query_as!(
+            Guild,
+            r#"
+            SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier,
+                   COALESCE(giveaway_timestamp AT TIME ZONE 'UTC', NULL) as giveaway_timestamp
+            FROM guilds
+            WHERE id = $1
+            "#,
+            guild_id
+        )
+        .fetch_optional(&self.pool)
+        .await;
 
         match result {
             Ok(guild) => {
                 println!("got something");
-                return Ok(guild.voice_multiplier);
+                return Ok(guild.unwrap().voice_multiplier);
             }
             Err(_) => {
                 let _ = sqlx::query!(
@@ -180,13 +207,22 @@ impl GuildRepo for Guilds {
         };
     }
     async fn get_text_multiplier(&self, guild_id: i64) -> Result<i64, Error> {
-        let result = sqlx::query_as!(Guild, "select * FROM guilds WHERE id = $1", guild_id)
-            .fetch_one(&self.pool)
-            .await;
+        let result: Result<Option<Guild>, sqlx::Error> = sqlx::query_as!(
+            Guild,
+            r#"
+            SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier,
+                   COALESCE(giveaway_timestamp AT TIME ZONE 'UTC', NULL) as giveaway_timestamp
+            FROM guilds
+            WHERE id = $1
+            "#,
+            guild_id
+        )
+        .fetch_optional(&self.pool)
+        .await;
 
         match result {
             Ok(guild) => {
-                return Ok(guild.text_multiplier);
+                return Ok(guild.unwrap().text_multiplier);
             }
             Err(_) => {
                 let _ = sqlx::query!(
@@ -204,9 +240,15 @@ impl GuildRepo for Guilds {
         };
     }
     async fn guilds(&self) -> Result<Vec<Guild>, Error> {
-        let result = sqlx::query_as!(Guild, "select * FROM guilds")
-            .fetch_all(&self.pool)
-            .await;
+        let result = sqlx::query_as!(
+            Guild,
+            r#"
+            SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier,
+                   COALESCE(giveaway_timestamp AT TIME ZONE 'UTC', NULL) as giveaway_timestamp
+            FROM guilds"#
+        )
+        .fetch_all(&self.pool)
+        .await;
 
         match result {
             Ok(res) => {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * FROM guilds WHERE id = $1",
+  "query": "\n            SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier,\n                   COALESCE(giveaway_timestamp AT TIME ZONE 'UTC', NULL) as giveaway_timestamp\n            FROM guilds",
   "describe": {
     "columns": [
       {
@@ -27,20 +27,24 @@
         "ordinal": 4,
         "name": "text_multiplier",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "giveaway_timestamp",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
-      "Left": [
-        "Int8"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
       false,
       true,
       false,
-      false
+      false,
+      null
     ]
   },
-  "hash": "a7bad04913320f238a9830e9f45d6db521b59f435cc65ca4d322fe6e8153395b"
+  "hash": "585cd5a8fbbb5a934d60a2e1aec4ec1c77e57680d0edf96277ee5f8a70cf4609"
 }

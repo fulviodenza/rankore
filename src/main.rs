@@ -1,5 +1,6 @@
 use std::{collections::HashSet, env, sync::Arc};
 
+use crate::commands::giveaway::GIVEAWAY_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::multipliers::MULTIPLIERS_COMMAND;
 use crate::commands::reset_scores::RESET_SCORES_COMMAND;
@@ -39,7 +40,8 @@ mod services;
     reset_scores,
     set_voice_multiplier,
     set_text_multiplier,
-    multipliers
+    multipliers,
+    giveaway
 )]
 pub struct Bot;
 
@@ -141,7 +143,8 @@ async fn main() {
         | GatewayIntents::GUILD_INTEGRATIONS
         | GatewayIntents::GUILD_MESSAGE_REACTIONS
         | GatewayIntents::GUILDS
-        | GatewayIntents::GUILD_MEMBERS;
+        | GatewayIntents::GUILD_MEMBERS
+        | GatewayIntents::GUILD_SCHEDULED_EVENTS;
     let framework = StandardFramework::new()
         .configure(|c| {
             c.dynamic_prefix(|ctx, msg| {
