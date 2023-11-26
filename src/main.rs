@@ -135,7 +135,7 @@ async fn main() {
         .unwrap();
 
     // Redis settings
-    let redis_client = redis::Client::open("redis://127.0.0.1:6379");
+    let redis_client = redis::Client::open("redis://:mypassword@127.0.0.1:6379");
     let con: redis::Connection = redis_client.unwrap().get_connection().unwrap();
 
     // Discord settings

@@ -29,16 +29,23 @@ async fn giveaway(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let schedule = now + Duration::new(duration, 0);
     let data_read: tokio::sync::RwLockReadGuard<'_, serenity::prelude::TypeMap> =
         ctx.data.read().await;
+    let timestamp_seconds =
+        schedule.timestamp() + (schedule.timestamp_subsec_nanos() as f64 / 1_000_000_000.0) as i64;
+
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let mut redis_state = global_state.redis.lock().await;
         let key = msg.guild_id.unwrap().0.to_string();
-        redis_state
+        let _ = redis_state
             .set::<String, String, String>(key.clone(), "OK".to_string())
             .unwrap();
-        let _ = redis_state.expire_at::<std::string::String, String>(
-            key,
-            schedule.timestamp_subsec_nanos() as usize,
-        );
+        {
+            let redis_res: redis::RedisResult<i32> =
+                redis_state.expire_at(key, timestamp_seconds as usize);
+            match redis_res {
+                Ok(_) => println!("Key set and expired successfully"),
+                Err(e) => eprintln!("Error expiring key: {}", e),
+            }
+        }
     }
     let outgoing_msg = format!(
         "event created with following schedule: {:?}",
