@@ -48,6 +48,7 @@ pub trait GuildRepo {
     async fn set_text_multiplier(&self, guild_id: i64, multiplier: i64) -> Result<bool, Error>;
     async fn get_text_multiplier(&self, guild_id: i64) -> Result<i64, Error>;
     async fn guilds(&self) -> Result<Vec<Guild>, Error>;
+    async fn get_welcome_msg(&self, guild_id: i64) -> Result<String, Error>;
 }
 
 #[async_trait]
@@ -102,6 +103,31 @@ impl GuildRepo for Guilds {
             }
         }
     }
+    async fn get_welcome_msg(&self, guild_id: i64) -> Result<String, Error> {
+        let result = sqlx::query_as!(Guild, "select * FROM guilds WHERE id = $1", guild_id)
+            .fetch_one(&self.pool)
+            .await;
+
+        match result {
+            Ok(guild) => {
+                return Ok(guild.welcome_msg.unwrap());
+            }
+            Err(_) => {
+                let _ = sqlx::query!(
+                    "INSERT into guilds(id, prefix, welcome_msg, voice_multiplier, text_multiplier) values ($1, $2, $3, $4, $5)",
+                    guild_id,
+                    "!",
+                    "",
+                    1,
+                    1,
+                )
+                .execute(&self.pool)
+                .await;
+                return Ok("Welcome to the server!".to_string());
+            }
+        };
+    }
+
     async fn get_prefix(&self, guild_id: i64) -> String {
         let guild: Result<Guild, Error> =
             sqlx::query_as!(Guild, "select * from guilds where id = $1", guild_id)
