@@ -74,8 +74,28 @@ impl EventHandler for Handler {
 
     async fn guild_member_addition(&self, ctx: Context, new_member: Member) {
         if let Some(channel_id) = find_welcome_channel(&ctx, new_member.guild_id.0).await {
-            let welcome_message = format!("Welcome to the server, <@{}>!", new_member.user.id);
-            let _ = channel_id.say(&ctx.http, welcome_message).await;
+            println!("{} joined", new_member.user.id);
+            let data_read = ctx.data.read().await;
+            if let Some(global_state) = data_read.get::<GlobalState>() {
+                let global_state = global_state.guilds.lock().await;
+                let msg = global_state
+                    .get_welcome_msg(new_member.guild_id.0 as i64)
+                    .await;
+                match msg {
+                    Ok(m) => {
+                        if m == "" {
+                            let welcome_message = format!("Welcome, <@{}>!", new_member.user.id);
+                            let _ = channel_id.say(&ctx.http, welcome_message).await;          
+                        }
+                        let welcome_message = format!("{}, <@{}>!", m, new_member.user.id);
+                        let _ = channel_id.say(&ctx.http, welcome_message).await;        
+                    },
+                    Err(_) => {
+                        let welcome_message = format!("Welcome, <@{}>!", new_member.user.id);
+                        let _ = channel_id.say(&ctx.http, welcome_message).await;        
+                    },
+                }
+            }
         }    
     }
 
