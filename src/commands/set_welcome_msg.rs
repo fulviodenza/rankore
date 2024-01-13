@@ -9,9 +9,7 @@ use crate::GlobalState;
 
 #[command]
 async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let mut cloned_args = args.clone();
-    let welcome_msg = cloned_args.single_quoted::<String>().unwrap_or_default();
-
+    let welcome_msg = args.message();
     let data_read = ctx.data.read().await;
     if let Some(global_state) = data_read.get::<GlobalState>() {
         let global_state = global_state.guilds.lock().await;
