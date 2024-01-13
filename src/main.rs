@@ -15,6 +15,7 @@ use db::{
     guilds::{GuildRepo, Guilds},
     users::{Users, UsersRepo},
 };
+use serenity::model::guild::Member;
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
     model::{
@@ -71,6 +72,13 @@ impl EventHandler for Handler {
         .await
     }
 
+    async fn guild_member_addition(&self, ctx: Context, new_member: Member) {
+        if let Some(channel_id) = find_welcome_channel(&ctx, new_member.guild_id.0).await {
+            let welcome_message = format!("Welcome to the server, <@{}>!", new_member.user.id);
+            let _ = channel_id.say(&ctx.http, welcome_message).await;
+        }    
+    }
+
     async fn voice_state_update(
         &self,
         ctx: Context,
@@ -118,6 +126,21 @@ impl EventHandler for Handler {
             }
         }
     }
+}
+
+async fn find_welcome_channel(ctx: &Context, guild_id: u64) -> Option<serenity::model::id::ChannelId> {
+    let guild = match ctx.http.get_guild(guild_id).await {
+        Ok(guild) => guild,
+        Err(_) => return None,
+    };
+
+    for (id, channel) in guild.channels(&ctx.http).await.unwrap() {
+        if channel.name == "welcome" {
+            return Some(id);
+        }
+    }
+
+    None
 }
 
 #[tokio::main]

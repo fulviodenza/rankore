@@ -14,3 +14,5 @@ This bot is currently tracking voice and text user activity into a Discord serve
 - `!set_voice_multiplier [INTEGER]`: set the multiplier to calculate the points for the voice activity for a user in a Discord server. greater the multiplier, greater will be the wait to add a point to that user. For example, if the admin sets the multiplier to 5, the bot will wait 5 seconds before incrementing 1 point to the user
 - `!set_text_multiplier [INTEGER]`: set the multiplier for each message, this is simply the points for each message
 - `!multipliers`: shows the `set_voice_multiplier` and the `set_text_multiplier`
+
+Ensure to have a `#welcome` channel existing in the Discord server!
