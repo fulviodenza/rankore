@@ -20,7 +20,7 @@ async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandRes
                 } else {
                     0
                 },
-                &welcome_msg,
+                welcome_msg,
             )
             .await;
     }
