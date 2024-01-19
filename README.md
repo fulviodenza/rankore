@@ -8,7 +8,7 @@ This bot is currently tracking voice and text user activity into a Discord serve
 ## Commands
 - `!leaderboard`: List the users and their points, from the most active to the less active;
 - `!set_prefix [PREFIX]`: Set the prefix for the Discord server in which the bot is running; (After this command the default `!` prefix will not be active, replaced by the one you set)
-- `!set_welcome_message [STRING]`: Set the welcome message
+- `!set_welcome_msg [STRING]`: Set the welcome message
 - `!help`: Get this help message
 - `!reset_scores`: Reset leaderboard scores
 - `!set_voice_multiplier [INTEGER]`: set the multiplier to calculate the points for the voice activity for a user in a Discord server. greater the multiplier, greater will be the wait to add a point to that user. For example, if the admin sets the multiplier to 5, the bot will wait 5 seconds before incrementing 1 point to the user
