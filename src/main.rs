@@ -83,20 +83,20 @@ impl EventHandler for Handler {
                     .await;
                 match msg {
                     Ok(m) => {
-                        if m == "" {
+                        if m.is_empty() {
                             let welcome_message = format!("Welcome, <@{}>!", new_member.user.id);
-                            let _ = channel_id.say(&ctx.http, welcome_message).await;          
+                            let _ = channel_id.say(&ctx.http, welcome_message).await;
                         }
                         let welcome_message = format!("{}, <@{}>!", m, new_member.user.id);
-                        let _ = channel_id.say(&ctx.http, welcome_message).await;        
-                    },
+                        let _ = channel_id.say(&ctx.http, welcome_message).await;
+                    }
                     Err(_) => {
                         let welcome_message = format!("Welcome, <@{}>!", new_member.user.id);
-                        let _ = channel_id.say(&ctx.http, welcome_message).await;        
-                    },
+                        let _ = channel_id.say(&ctx.http, welcome_message).await;
+                    }
                 }
             }
-        }    
+        }
     }
 
     async fn voice_state_update(
@@ -148,7 +148,10 @@ impl EventHandler for Handler {
     }
 }
 
-async fn find_welcome_channel(ctx: &Context, guild_id: u64) -> Option<serenity::model::id::ChannelId> {
+async fn find_welcome_channel(
+    ctx: &Context,
+    guild_id: u64,
+) -> Option<serenity::model::id::ChannelId> {
     let guild = match ctx.http.get_guild(guild_id).await {
         Ok(guild) => guild,
         Err(_) => return None,

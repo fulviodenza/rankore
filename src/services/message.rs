@@ -59,7 +59,6 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
         } else if !active_users.contains(&user_id) {
             // The user didn't leave the channel
             if voice.channel_id.is_some() {
-                println!("{:?}", voice.channel_id);
                 let global_state_users = global_state.users.lock().await.clone();
                 let mut nick: String = "".to_string();
                 let mut multiplier = 1;

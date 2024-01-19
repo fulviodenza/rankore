@@ -81,23 +81,28 @@ impl UsersRepo for Users {
         .await;
         match temp_user {
             Ok(u) => {
-                let _ = sqlx::query!(
-                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3, guild_id = $4 WHERE id = $5",
+                let res = sqlx::query!(
+                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3 WHERE id = $4",
                     u.score + 1,
                     user.nick,
                     user.is_bot,
-                    user.guild_id,
                     user.id,
                 )
                 .execute(pool)
                 .await;
+                match res {
+                    Ok(_) => {}
+                    Err(e) => {
+                        println!("[update_user]: got error {}", e)
+                    }
+                }
             }
             Err(_) => {
                 let _ = sqlx::query!(
                     "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
                     user.id,
                     0,
-                    "",
+                    user.nick,
                     user.is_bot,
                     user.guild_id,
                 )
