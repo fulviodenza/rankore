@@ -15,7 +15,7 @@ async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult
         users_vec.sort_by(|a: &crate::db::users::User, b| b.score.partial_cmp(&a.score).unwrap());
 
         let mut msg_str = "".to_string();
-        for (_, user) in users_vec.into_iter().enumerate() {
+        for user in users_vec.into_iter() {
             if !user.is_bot {
                 msg_str.push_str(&format!("{}: {}\n", user.nick, user.score));
             }
