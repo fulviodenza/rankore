@@ -82,11 +82,12 @@ impl UsersRepo for Users {
         match temp_user {
             Ok(u) => {
                 let res = sqlx::query!(
-                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3 WHERE id = $4",
+                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3 WHERE id = $4 and guild_id = $5",
                     u.score + 1,
                     user.nick,
                     user.is_bot,
                     user.id,
+                    user.guild_id,
                 )
                 .execute(pool)
                 .await;
