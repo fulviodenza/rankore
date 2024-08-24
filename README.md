@@ -2,8 +2,8 @@
 A discord bot to track user activity in a Discord server.
 This bot is currently tracking voice and text user activity into a Discord server.<br>
 
-[Invite me!](https://discord.com/oauth2/authorize?client_id=1161409490369912924&permissions=8&scope=bot)
- or Join the official [rankore Discord server](https://discord.gg/jfSvzPDY)!
+[Invite me!](https://discord.com/oauth2/authorize?client_id=1161409490369912924&scope=bot)
+ or Join the official [rankore Discord server](https://discord.gg/RezDWZwKCT)!
  
 ## Commands
 - `!leaderboard`: List the users and their points, from the most active to the less active;
