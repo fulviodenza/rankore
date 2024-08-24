@@ -86,9 +86,10 @@ impl EventHandler for Handler {
                         if m.is_empty() {
                             let welcome_message = format!("Welcome, <@{}>!", new_member.user.id);
                             let _ = channel_id.say(&ctx.http, welcome_message).await;
+                        } else {
+                            let welcome_message = format!("{}, <@{}>!", m, new_member.user.id);
+                            let _ = channel_id.say(&ctx.http, welcome_message).await;
                         }
-                        let welcome_message = format!("{}, <@{}>!", m, new_member.user.id);
-                        let _ = channel_id.say(&ctx.http, welcome_message).await;
                     }
                     Err(_) => {
                         let welcome_message = format!("Welcome, <@{}>!", new_member.user.id);
