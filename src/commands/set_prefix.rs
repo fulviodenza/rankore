@@ -8,6 +8,7 @@ use crate::db::guilds::GuildRepo;
 use crate::GlobalState;
 
 #[command]
+#[required_permissions(ADMINISTRATOR)]
 async fn set_prefix(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let mut cloned_args = args.clone();
     let new_prefix = cloned_args.single_quoted::<String>().unwrap_or_default();

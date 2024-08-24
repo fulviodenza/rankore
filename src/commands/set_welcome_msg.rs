@@ -8,6 +8,7 @@ use crate::db::guilds::GuildRepo;
 use crate::GlobalState;
 
 #[command]
+#[required_permissions(ADMINISTRATOR)]
 async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let welcome_msg = args.message();
     let data_read = ctx.data.read().await;
