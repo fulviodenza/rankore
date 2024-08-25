@@ -8,7 +8,7 @@ use crate::commands::send_titled_message;
 
 #[command]
 async fn help(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let readme_file = fs::read_to_string("./README.md").expect("Unable to read file");
+    let readme_file = fs::read_to_string("./assets/README.md").expect("Unable to read file");
     send_titled_message(ctx, msg, "Rankore /help".to_string(), readme_file).await;
 
     Ok(())
