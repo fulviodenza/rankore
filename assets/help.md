@@ -1,7 +1,3 @@
-<p align="center">
-    <img width="500" height="auto" src="./assets/et6QQbt.png" alt="WiseMan" />
-</p>
-
 ## rankore - Discord Bot 🤖
 A discord bot to track user activity in a Discord server.
 This bot is currently tracking voice and text user activity into a Discord server.<br>
