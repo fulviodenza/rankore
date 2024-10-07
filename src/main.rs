@@ -13,10 +13,12 @@ use crate::services::message::init_active_users;
 use crate::{commands::help::HELP_COMMAND, services::message::VoiceStateReady};
 
 use async_trait::async_trait;
+use commands::{get_prefix, help};
 use db::{
     guilds::{GuildRepo, Guilds},
     users::{Users, UsersRepo},
 };
+use serenity::framework::standard::Args;
 use serenity::model::guild::Member;
 use serenity::{
     framework::{standard::macros::group, StandardFramework},
@@ -65,15 +67,21 @@ struct Handler;
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         // For each message received, increase the score
-        // of the interacting user
         crate::services::message::increase_score(
-            Arc::new(ctx),
+            Arc::new(ctx.clone()), // Clone the context for use later
             msg.author.id.0 as i64,
-            msg.author.name,
+            msg.author.name.clone(), // Clone the name to avoid partial move
             msg.author.bot,
             msg.guild_id.unwrap().0 as i64,
         )
-        .await
+        .await;
+
+        if msg.content == "!get_prefix" {
+            let _ = (get_prefix::GET_PREFIX_COMMAND.fun)(&ctx, &msg, Args::new("", &[])).await;
+        }
+        if msg.content == "!help" {
+            let _ = (help::HELP_COMMAND.fun)(&ctx, &msg, Args::new("", &[])).await;
+        }
     }
 
     async fn guild_member_addition(&self, ctx: Context, new_member: Member) {
@@ -226,8 +234,10 @@ async fn main() {
             })
         })
         .group(&BOT_GROUP);
+
     let guilds_pool = Arc::new(Mutex::new(Guilds::new(&pool).await));
     let users_pool = Arc::new(Mutex::new(Users::new(&pool).await));
+
     let mut client = Client::builder(token, intents)
         .event_handler(Handler)
         .framework(framework)
@@ -238,6 +248,7 @@ async fn main() {
         })
         .await
         .expect("Error creating client");
+
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why)
     }
