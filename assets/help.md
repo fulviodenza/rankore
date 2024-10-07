@@ -8,6 +8,7 @@ This bot is currently tracking voice and text user activity into a Discord serve
 ## Commands
 - `!leaderboard`: List the users and their points, from the most active to the less active;
 - `!set_prefix [PREFIX]`: Set the prefix for the Discord server in which the bot is running; (After this command the default `!` prefix will not be active, replaced by the one you set)
+- `!get_prefix [PREFIX]`: Get the prefix for the Discord server in which the bot is running
 - `!set_welcome_msg [STRING]`: Set the welcome message
 - `!help`: Get this help message
 - `!reset_scores`: Reset leaderboard scores
