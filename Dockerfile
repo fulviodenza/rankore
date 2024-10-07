@@ -5,6 +5,7 @@ COPY ./Cargo.toml .
 
 COPY ./src ./src
 COPY .sqlx/ ./.sqlx/
+RUN mkdir ./tmp
 COPY ./assets ./assets
 COPY README.md ./README.md
 RUN SQLX_OFFLINE=true cargo build --release

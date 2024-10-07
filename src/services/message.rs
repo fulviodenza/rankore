@@ -104,7 +104,7 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
 pub struct VoiceStateReady {
     pub member: Member,
     pub user_id: UserId,
-    pub channel_id: ChannelId,
+    pub _channel_id: ChannelId,
     pub guild_id: GuildId,
 }
 
@@ -124,7 +124,7 @@ pub async fn init_active_users(ctx: Context, voice: VoiceStateReady) {
         match ctx.http.get_user(voice.user_id.0).await {
             Ok(u) => match u.nick_in(ctx.http, voice.guild_id).await {
                 Some(n) => nick = n,
-                None => nick = u.name,
+                _none => nick = u.name,
             },
             Err(_) => {
                 return;
