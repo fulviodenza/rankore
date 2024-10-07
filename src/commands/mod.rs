@@ -1,6 +1,7 @@
 use serenity::{model::prelude::Message, prelude::Context};
 
 pub mod download_leaderboard;
+pub mod get_prefix;
 pub mod help;
 pub mod leaderboard;
 pub mod multipliers;
@@ -9,6 +10,7 @@ pub mod set_prefix;
 pub mod set_text_multiplier;
 pub mod set_voice_multiplier;
 pub mod set_welcome_msg;
+
 use std::path::Path;
 
 pub async fn send_message(ctx: &Context, msg: &Message, content: String) {

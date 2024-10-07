@@ -1,6 +1,7 @@
 use std::{collections::HashSet, env, sync::Arc};
 
 use crate::commands::download_leaderboard::DOWNLOAD_LEADERBOARD_COMMAND;
+use crate::commands::get_prefix::GET_PREFIX_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::multipliers::MULTIPLIERS_COMMAND;
 use crate::commands::reset_scores::RESET_SCORES_COMMAND;
@@ -35,6 +36,7 @@ mod services;
 #[group]
 #[commands(
     set_prefix,
+    get_prefix,
     leaderboard,
     set_welcome_msg,
     help,
@@ -120,7 +122,6 @@ impl EventHandler for Handler {
             for id in guild_ids {
                 let g = ctx.http.get_guild(id as u64).await;
                 match g {
-                    // let http_ctx =
                     Ok(_) => {
                         if let Ok(channels) = g.unwrap().channels(&ctx.http).await {
                             for c in channels {
