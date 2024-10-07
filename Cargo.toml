@@ -29,3 +29,4 @@ sqlx = { version = "0.7.2", features = [
     "json",
     # "bigint",
 ] }
+xlsxwriter = "0.6.1"

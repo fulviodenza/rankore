@@ -22,4 +22,4 @@ vendor
 
 /postgres_data
 
-todo
+/tmp/*

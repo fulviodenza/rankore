@@ -1,5 +1,6 @@
 use std::{collections::HashSet, env, sync::Arc};
 
+use crate::commands::download_leaderboard::DOWNLOAD_LEADERBOARD_COMMAND;
 use crate::commands::leaderboard::LEADERBOARD_COMMAND;
 use crate::commands::multipliers::MULTIPLIERS_COMMAND;
 use crate::commands::reset_scores::RESET_SCORES_COMMAND;
@@ -40,7 +41,8 @@ mod services;
     reset_scores,
     set_voice_multiplier,
     set_text_multiplier,
-    multipliers
+    multipliers,
+    download_leaderboard
 )]
 pub struct Bot;
 
@@ -130,7 +132,7 @@ impl EventHandler for Handler {
                                             VoiceStateReady {
                                                 member: m.clone(),
                                                 user_id: m.user.id,
-                                                channel_id: c.0,
+                                                _channel_id: c.0,
                                                 guild_id: c.1.guild_id,
                                             },
                                         )
@@ -213,7 +215,7 @@ async fn main() {
                                 Some(val)
                             }
                         }
-                        None => {
+                        _none => {
                             println!("Using ! as prefix");
                             guild.set_prefix(guild_id, "!").await;
                             Some("!".to_string())
@@ -223,10 +225,8 @@ async fn main() {
             })
         })
         .group(&BOT_GROUP);
-
     let guilds_pool = Arc::new(Mutex::new(Guilds::new(&pool).await));
     let users_pool = Arc::new(Mutex::new(Users::new(&pool).await));
-
     let mut client = Client::builder(token, intents)
         .event_handler(Handler)
         .framework(framework)
@@ -237,7 +237,6 @@ async fn main() {
         })
         .await
         .expect("Error creating client");
-
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why)
     }
