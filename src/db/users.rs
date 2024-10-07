@@ -36,7 +36,6 @@ pub struct User {
 #[async_trait]
 pub trait UsersRepo {
     async fn new(pool: &Pool<Postgres>) -> Arc<Self>;
-    async fn insert_user(&self, user: User);
     async fn update_user(pool: &Pool<Postgres>, id: User);
     async fn get_users(&self, guild_id: i64) -> Vec<User>;
     async fn reset_scores(&self, guild_id: i64);
@@ -55,19 +54,6 @@ impl UsersRepo for Users {
             users_clone.notify(rx).await;
         });
         users
-    }
-
-    async fn insert_user(&self, user: User) {
-        let _ = sqlx::query!(
-            "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
-            user.id,
-            user.score,
-            user.nick,
-            user.is_bot,
-            user.guild_id,
-        )
-        .execute(&self.pool)
-        .await;
     }
 
     async fn update_user(pool: &Pool<Postgres>, user: User) {

@@ -21,3 +21,4 @@ Cargo.lock
 vendor
 
 /postgres_data
+/tmp/*
