@@ -31,6 +31,8 @@ pub struct User {
     pub is_bot: bool,
     #[sqlx(default)]
     pub guild_id: i64,
+    #[sqlx(default)]
+    pub hasLeft: bool,
 }
 
 #[async_trait]
@@ -59,7 +61,7 @@ impl UsersRepo for Users {
     async fn update_user(pool: &Pool<Postgres>, user: User) {
         let temp_user: Result<User, Error> = sqlx::query_as!(
             User,
-            "select * from users where id = $1 and guild_id = $2",
+            "select id, score, nick, is_bot, guild_id, hasLeft from users where id = $1 and guild_id = $2",
             user.id,
             user.guild_id
         )
@@ -68,10 +70,11 @@ impl UsersRepo for Users {
         match temp_user {
             Ok(u) => {
                 let res = sqlx::query!(
-                    "UPDATE users SET  score = $1, nick = $2, is_bot = $3 WHERE id = $4 and guild_id = $5",
+                    "UPDATE users SET score = $1, nick = $2, is_bot = $3, hasLeft = $4 WHERE id = $5 and guild_id = $6",
                     u.score + 1,
                     user.nick,
                     user.is_bot,
+                    user.hasLeft,
                     user.id,
                     user.guild_id,
                 )
@@ -86,12 +89,13 @@ impl UsersRepo for Users {
             }
             Err(_) => {
                 let _ = sqlx::query!(
-                    "INSERT into users(id, score, nick, is_bot, guild_id) values ($1, $2, $3, $4, $5)",
+                    "INSERT into users(id, score, nick, is_bot, guild_id, hasLeft) values ($1, $2, $3, $4, $5, $6)",
                     user.id,
                     0,
                     user.nick,
                     user.is_bot,
                     user.guild_id,
+                    user.hasLeft,
                 )
                 .execute(pool)
                 .await;
@@ -100,7 +104,7 @@ impl UsersRepo for Users {
     }
 
     async fn get_users(&self, guild_id: i64) -> Vec<User> {
-        let result = sqlx::query_as!(User, "select * from users WHERE guild_id = $1", guild_id)
+        let result = sqlx::query_as!(User, "select id, score, nick, is_bot, guild_id, hasLeft from users WHERE guild_id = $1", guild_id)
             .fetch_all(&self.pool)
             .await
             .unwrap();
@@ -113,6 +117,7 @@ impl UsersRepo for Users {
                 nick: user.nick.clone(),
                 is_bot: user.is_bot,
                 guild_id: user.guild_id,
+                hasLeft: user.hasLeft,
             })
             .collect();
 
@@ -140,7 +145,7 @@ impl Observer for Users {
             let users_pool = self.pool.clone();
 
             match event {
-                UserEvents::Joined(user_id, nick, is_bot, guild_id, multiplier) => {
+                UserEvents::JoinedVocalChannel(user_id, nick, is_bot, guild_id, multiplier) => {
                     let (tx, mut rx) = oneshot::channel::<()>();
                     hashmap.write().await.insert(user_id, tx);
                     tokio::spawn(async move {
@@ -149,7 +154,7 @@ impl Observer for Users {
 
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(multiplier as u64)) => {
-                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score: 0, nick: nick.clone(), is_bot, guild_id})
+                                    db::users::Users::update_user(&user_pool_clone, User { id: user_id, score: 0, nick: nick.clone(), is_bot, guild_id, hasLeft: false, })
                                     .await;
                                 },
                                 _ = &mut rx => {
@@ -159,7 +164,7 @@ impl Observer for Users {
                         }
                     });
                 }
-                UserEvents::Left(user_id) => {
+                UserEvents::LeftVocalChannel(user_id) => {
                     let mut writing_hashmap = hashmap.write().await;
                     let sender = writing_hashmap.remove(&user_id);
                     if let Some(sender) = sender {
@@ -175,9 +180,13 @@ impl Observer for Users {
                             nick,
                             is_bot,
                             guild_id,
+                            hasLeft: false,
                         },
                     )
                     .await;
+                }
+                UserEvents::LeftServer(user_id) => {
+                    // Handle the event where a user leaves the server
                 }
             }
         }

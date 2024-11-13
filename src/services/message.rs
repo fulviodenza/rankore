@@ -83,7 +83,7 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
                     false => {
                         global_state_users
                             .tx
-                            .send(crate::db::events::UserEvents::Joined(
+                            .send(crate::db::events::UserEvents::JoinedVocalChannel(
                                 user_id,
                                 nick,
                                 is_bot,
@@ -98,6 +98,24 @@ pub async fn handle_voice(ctx: Context, voice: VoiceState) {
         } else {
             println!("Nothing to do!");
         }
+    }
+}
+
+pub async fn handle_left_server(
+    ctx: Arc<Context>,
+    user_id: i64,
+    nick: String,
+    is_bot: bool,
+    guild_id: i64,
+) {
+    let data_read = ctx.data.read().await;
+    if let Some(global_state) = data_read.get::<GlobalState>() {
+        let global_state_users = global_state.users.lock().await.clone();
+        global_state_users
+            .tx
+            .send(crate::db::events::UserEvents::LeftServer(user_id))
+            .unwrap();
+        println!("user: {:?} left server", user_id);
     }
 }
 
@@ -135,7 +153,7 @@ pub async fn init_active_users(ctx: Context, voice: VoiceStateReady) {
             .lock()
             .await
             .tx
-            .send(crate::db::events::UserEvents::Joined(
+            .send(crate::db::events::UserEvents::JoinedVocalChannel(
                 voice.user_id.0 as i64,
                 nick,
                 voice.member.user.bot,
