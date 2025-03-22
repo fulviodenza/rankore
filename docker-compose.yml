@@ -10,6 +10,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: mydb
+      DATABASE_URL: "postgres://postgres:password@postgres:5432/mydb"
     ports:
       - "5431:5432"
     volumes:

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users SET score = $1, nick = $2, is_bot = $3, hasleft = $4 WHERE id = $5 and guild_id = $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Bool",
+        "Bool",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "654d6a501979725cb5018b8a1c059c3e9036a5b0f658f4368d5418a9322a6fb0"
+}

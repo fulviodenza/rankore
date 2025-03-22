@@ -8,7 +8,47 @@ This bot is currently tracking voice and text user activity into a Discord serve
 
 [Invite me!](https://discord.com/oauth2/authorize?client_id=1161409490369912924&scope=bot)
  or Join the official [rankore Discord server](https://discord.gg/RezDWZwKCT)!
- 
+
+## Prerequisites
+1. Rust 1.81.0
+2. Cargo  1.84.0
+
+## Installation
+1. Clone this Repository
+2. Install the db from the docker
+```bash
+docker compose up -d
+```
+3. Add the DB to env
+```bash
+ export DATABASE_URL="postgres://postgres:password@localhost:5431/mydb"
+```
+4. Migrate the DB
+```bash
+cargo sqlx migrate run
+```
+5. Build the app
+```bash
+cargo build
+```
+6. Prepare the DB
+```bash
+cargo sqlx prepare
+```
+7. Add your Discord token
+```bash
+export DISCORD_TOKEN=<Your Token Here>
+```
+8. Run run.sh
+```bash
+./run.sh
+```
+or you can use screen
+```bash
+screen ./run.sh
+```
+
+
 ## Commands
 - `!leaderboard`: List the users and their points, from the most active to the less active;
 - `!download_leaderboard`: get a file .xlsx containing a table with all the users and related scores

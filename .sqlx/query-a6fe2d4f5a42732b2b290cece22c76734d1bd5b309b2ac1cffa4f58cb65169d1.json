@@ -27,6 +27,11 @@
         "ordinal": 4,
         "name": "guild_id",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "hasleft",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -39,7 +44,8 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "a6fe2d4f5a42732b2b290cece22c76734d1bd5b309b2ac1cffa4f58cb65169d1"
