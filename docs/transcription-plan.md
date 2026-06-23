@@ -76,17 +76,54 @@ Keeping Whisper out of the bot process has three benefits:
 
 The bot talks HTTP to it (e.g., `POST /transcribe` with `audio/wav` body).
 
-## 3. Engine choice
+## 3. Engine choice — sized for low-cost hardware
 
-| Option | Cost | Latency | Privacy | Notes |
-|---|---|---|---|---|
-| **whisper.cpp** self-hosted | none | ~real-time on `small` CPU, faster on GPU/Metal | data stays on the cluster | recommended for the homelab |
-| OpenAI Whisper API | $0.006/min | low | audio leaves the cluster | trivial integration |
-| Deepgram / AssemblyAI streaming | paid | <1s end-to-end | external | best UX but external |
-| faster-whisper (CTranslate2) | none | faster than whisper.cpp on CPU | local | needs Python sidecar |
+Target: a single k3s node with 2–4 CPU cores and a few GB of free RAM, no GPU.
+This rules out anything from `medium` upward; even `small` is borderline once
+the bot, Postgres, and other workloads are on the same node.
 
-**Recommendation:** start with whisper.cpp `base` or `small` model on CPU. Move
-to GPU or faster-whisper if latency is a problem.
+### Model shortlist
+
+| Model | Params | RAM (Q5_0) | Disk (Q5_0) | RTF on 4×x86_64 CPU | Languages | Quality |
+|---|---|---|---|---|---|---|
+| whisper.cpp `tiny.en`   | 39M  | ~75 MB  | ~30 MB  | ~0.10× | English only | usable for simple speech |
+| whisper.cpp `base.en`   | 74M  | ~140 MB | ~60 MB  | ~0.20× | English only | clearly better; recommended |
+| whisper.cpp `tiny`      | 39M  | ~75 MB  | ~30 MB  | ~0.10× | multilingual | mediocre |
+| whisper.cpp `base`      | 74M  | ~140 MB | ~60 MB  | ~0.20× | multilingual | acceptable |
+| whisper.cpp `small.en`  | 244M | ~500 MB | ~190 MB | ~0.50× | English only | great if you have headroom |
+| Vosk `small-en-us`      | —    | ~80 MB  | ~40 MB  | ~0.05× | English only | worse than whisper but very efficient |
+
+RTF = real-time factor; RTF < 1.0 means faster than real time, so a single
+4-core box can keep up with one speaker.
+
+### Recommendation
+
+- **English-only servers:** `whisper.cpp base.en` with Q5_0 quantization.
+  ~140 MB RAM, ~60 MB on disk, comfortably real-time on 2 CPU cores. Quality
+  is solidly better than `tiny.en` for not much more cost.
+- **Multilingual servers:** `whisper.cpp base` Q5_0. Same footprint.
+- **Sub-Raspberry-Pi-class hardware:** `tiny.en` Q5_0. Still useful.
+- **Lots of CPU headroom and English-only:** jump to `small.en` Q5_0 for
+  noticeably better accuracy. Skip anything larger; `medium` needs ~2 GB RAM
+  and an RTF around 1.0 on 4 cores, i.e. exactly real-time with no margin.
+
+Quantized GGML models are at https://huggingface.co/ggerganov/whisper.cpp.
+Pull the `*-q5_0.bin` variant.
+
+### Engines considered and rejected
+
+| Option | Why not |
+|---|---|
+| OpenAI Whisper API ($0.006/min) | Audio leaves the cluster; defeats the homelab/privacy point. |
+| Deepgram / AssemblyAI streaming | External, paid, lowest latency — keep as a fallback option, not the default. |
+| faster-whisper (CTranslate2) | Faster per watt on CPU, but adds a Python sidecar. Only worth it if `base.en` can't keep up; revisit then. |
+| `small` / `medium` / `large` whisper | RAM and CPU cost outside the "low-cost hardware" envelope. |
+
+### Settling latency vs accuracy at runtime
+
+Make the model a config knob on the whisper Deployment (`WHISPER_MODEL=base.en`),
+not a build-time decision. The model file lives on a PVC so swapping it is a
+restart, not a rebuild.
 
 ## 4. Audio plumbing details
 
@@ -127,10 +164,13 @@ Sessions are keyed by `(guild_id, channel_id, started_at)`.
 Two new workloads in the `rankore` namespace:
 
 - `whisper` Deployment + Service
-  - image: `ghcr.io/ggerganov/whisper.cpp:server` (or a self-built image with
-    a particular model baked in)
-  - PVC for the model file (avoids re-downloading on restart)
-  - resources: 2 vCPU / 4Gi for `small`, 4 vCPU / 8Gi for `medium`
+  - image: `ghcr.io/ggerganov/whisper.cpp:server` (or a self-built thin image)
+  - PVC for the model file (~60 MB for `base.en` Q5_0) so the model isn't
+    re-downloaded on restart
+  - resources sized for `base.en` Q5_0:
+    - requests: 500m CPU / 256Mi RAM
+    - limits:   2 CPU / 512Mi RAM
+  - If you later swap to `small.en`, bump the limits to 4 CPU / 1Gi RAM.
 - The existing `rankore` Deployment gets a transcripts PVC mount and a
   `WHISPER_URL=http://whisper:9000` env var.
 
@@ -187,8 +227,9 @@ phases 4–6 are smaller polish (~1 week combined).
 - **Discord ToS / privacy law.** Mitigation: explicit consent banner,
   per-user opt-out, no raw audio retention by default, clear documentation
   of retention.
-- **Memory.** whisper-small: ~500MB resident; whisper-medium: ~1.5GB. Sized
-  in the k8s resources.
+- **Memory.** Recommended `base.en` Q5_0: ~140 MB resident. `small.en` Q5_0:
+  ~500 MB. `medium` and up are intentionally out of scope for the homelab
+  hardware budget.
 - **serenity 0.11 EOL.** Newer songbird requires serenity 0.12+. If we have
   to upgrade serenity, the bulk of the bot code stays the same but the
   builder APIs and some event signatures change. Worth scoping that upgrade
