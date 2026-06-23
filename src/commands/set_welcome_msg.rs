@@ -1,5 +1,4 @@
 use serenity::framework::standard::macros::command;
-
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::{model::prelude::Message, prelude::Context};
 
@@ -10,21 +9,24 @@ use crate::GlobalState;
 #[command]
 #[required_permissions(ADMINISTRATOR)]
 async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let welcome_msg = args.message();
+    let Some(guild_id) = msg.guild_id else {
+        return Ok(());
+    };
     let data_read = ctx.data.read().await;
-    if let Some(global_state) = data_read.get::<GlobalState>() {
-        let global_state = global_state.guilds.lock().await;
-        global_state
-            .set_welcome_msg(
-                if let Some(guild_id) = msg.guild_id {
-                    guild_id.0 as i64
-                } else {
-                    0
-                },
-                welcome_msg,
-            )
-            .await;
-    }
-    send_message(ctx, msg, "welcome message set".to_string()).await;
+    let Some(global_state) = data_read.get::<GlobalState>() else {
+        return Ok(());
+    };
+    let reply = match global_state
+        .guilds
+        .set_welcome_msg(guild_id.0 as i64, args.message())
+        .await
+    {
+        Ok(()) => "welcome message set".to_string(),
+        Err(e) => {
+            eprintln!("[set_welcome_msg] db error: {e}");
+            "failed to set welcome message".to_string()
+        }
+    };
+    send_message(ctx, msg, reply).await;
     Ok(())
 }

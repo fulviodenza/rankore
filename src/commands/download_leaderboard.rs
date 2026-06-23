@@ -1,5 +1,8 @@
+use std::fs;
+use std::path::Path;
+
 use crate::commands::send_titled_files;
-use crate::db::users::UsersRepo;
+use crate::db::users::{User, UsersRepo};
 use crate::GlobalState;
 use serenity::framework::standard::macros::command;
 use serenity::framework::standard::{Args, CommandResult};
@@ -7,44 +10,68 @@ use serenity::model::prelude::*;
 use serenity::prelude::*;
 use xlsxwriter::*;
 
+const LEADERBOARD_LIMIT: i64 = 10_000;
+
 #[command]
 async fn download_leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
+    let Some(guild_id) = msg.guild_id else {
+        return Ok(());
+    };
     let data_read = ctx.data.read().await;
-    if let Some(global_state) = data_read.get::<GlobalState>() {
-        let global_state = global_state.users.lock().await;
+    let Some(global_state) = data_read.get::<GlobalState>() else {
+        return Ok(());
+    };
 
-        let mut users_vec = global_state.get_users(msg.guild_id.unwrap().0 as i64).await;
-        users_vec.sort_by(|a: &crate::db::users::User, b| b.score.partial_cmp(&a.score).unwrap());
+    let users = match global_state
+        .users
+        .get_leaderboard(guild_id.0 as i64, LEADERBOARD_LIMIT)
+        .await
+    {
+        Ok(u) => u,
+        Err(e) => {
+            eprintln!("[download_leaderboard] db error: {e}");
+            return Ok(());
+        }
+    };
 
-        let file_path = format!("./tmp/leaderboard-{}.xlsx", msg.guild_id.unwrap().0);
-
-        println!("[download_leaderboard] creating file {}", file_path);
-        let _ = create_xls_file(&file_path, users_vec.into_iter());
-
-        let path = file_path.clone();
-        send_titled_files(ctx, msg, path).await;
+    let tmp_dir = std::env::temp_dir().join("rankore");
+    if let Err(e) = fs::create_dir_all(&tmp_dir) {
+        eprintln!("[download_leaderboard] failed to create tmp dir: {e}");
+        return Ok(());
     }
+
+    let file_path = tmp_dir.join(format!(
+        "leaderboard-{}-{}.xlsx",
+        guild_id.0,
+        msg.id.0,
+    ));
+
+    if let Err(e) = create_xls_file(&file_path, &users) {
+        eprintln!("[download_leaderboard] xlsx write failed: {e}");
+        return Ok(());
+    }
+
+    send_titled_files(ctx, msg, file_path.to_string_lossy().into_owned()).await;
+    let _ = fs::remove_file(&file_path);
 
     Ok(())
 }
 
-fn create_xls_file(file_path: &str, users_vec: std::vec::IntoIter<crate::db::users::User>) {
-    let workbook = Workbook::new(&file_path).unwrap();
-    let mut sheet = workbook.add_worksheet(None).unwrap();
+fn create_xls_file(file_path: &Path, users: &[User]) -> Result<(), XlsxError> {
+    let path_str = file_path.to_string_lossy();
+    let workbook = Workbook::new(&path_str)?;
+    let mut sheet = workbook.add_worksheet(None)?;
 
-    sheet.write_string(0, 0, "Username", None).unwrap();
-    sheet.write_string(0, 1, "Score", None).unwrap();
+    sheet.write_string(0, 0, "Username", None)?;
+    sheet.write_string(0, 1, "Score", None)?;
 
-    for (i, user) in users_vec.enumerate() {
-        if !user.is_bot {
-            sheet
-                .write_string(i as u32 + 1, 0, &user.nick, None)
-                .unwrap();
-            sheet
-                .write_number(i as u32 + 1, 1, user.score as f64, None)
-                .unwrap();
-        }
+    let mut row: u32 = 1;
+    for user in users {
+        sheet.write_string(row, 0, &user.nick, None)?;
+        sheet.write_number(row, 1, user.score as f64, None)?;
+        row += 1;
     }
 
-    workbook.close().unwrap();
+    workbook.close()?;
+    Ok(())
 }

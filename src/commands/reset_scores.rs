@@ -9,13 +9,20 @@ use crate::GlobalState;
 #[command]
 #[required_permissions(ADMINISTRATOR)]
 async fn reset_scores(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
+    let Some(guild_id) = msg.guild_id else {
+        return Ok(());
+    };
     let data_read = ctx.data.read().await;
-    if let Some(global_state) = data_read.get::<GlobalState>() {
-        let global_state = global_state.users.lock().await;
-        let guild_id = msg.guild_id.unwrap().0;
-        global_state.reset_scores(guild_id as i64).await;
-        send_message(ctx, msg, "Scores resetted".to_string()).await;
-    }
-
+    let Some(global_state) = data_read.get::<GlobalState>() else {
+        return Ok(());
+    };
+    let reply = match global_state.users.reset_scores(guild_id.0 as i64).await {
+        Ok(()) => "Scores reset".to_string(),
+        Err(e) => {
+            eprintln!("[reset_scores] db error: {e}");
+            "failed to reset scores".to_string()
+        }
+    };
+    send_message(ctx, msg, reply).await;
     Ok(())
 }
