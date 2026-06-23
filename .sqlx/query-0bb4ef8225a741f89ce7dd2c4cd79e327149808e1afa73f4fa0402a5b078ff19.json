@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier) VALUES ($1, $2, '', 1, 1) ON CONFLICT (id) DO UPDATE SET prefix = EXCLUDED.prefix",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0bb4ef8225a741f89ce7dd2c4cd79e327149808e1afa73f4fa0402a5b078ff19"
+}

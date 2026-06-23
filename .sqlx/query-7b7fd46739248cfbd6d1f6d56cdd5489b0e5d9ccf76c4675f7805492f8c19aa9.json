@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO users (id, score, nick, is_bot, guild_id, hasleft) VALUES ($1, $2, $3, $4, $5, false) ON CONFLICT (id, guild_id) DO UPDATE SET score = users.score + EXCLUDED.score, nick = EXCLUDED.nick, is_bot = EXCLUDED.is_bot, hasleft = false",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b7fd46739248cfbd6d1f6d56cdd5489b0e5d9ccf76c4675f7805492f8c19aa9"
+}

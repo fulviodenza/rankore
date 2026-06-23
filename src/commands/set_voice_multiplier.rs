@@ -8,33 +8,40 @@ use serenity::{model::prelude::Message, prelude::Context};
 #[command]
 #[required_permissions(ADMINISTRATOR)]
 async fn set_voice_multiplier(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let multiplier_res = args
+    let Some(guild_id) = msg.guild_id else {
+        return Ok(());
+    };
+    let parsed = args
         .clone()
         .single_quoted::<String>()
         .unwrap_or_default()
         .parse::<i64>();
-    let mut outgoing_msg = "you need to insert an integer number! If math is a problem, integer numbers are the numbers like 1, 2, 3".to_string();
-    match multiplier_res {
-        Ok(m) => {
-            let data_read = ctx.data.read().await;
-            outgoing_msg = "You don't have permissions to change voice multiplier!".to_string();
+    let Ok(multiplier) = parsed else {
+        send_message(
+            ctx,
+            msg,
+            "you need to insert a positive integer (e.g. 1, 2, 3)".to_string(),
+        )
+        .await;
+        return Ok(());
+    };
 
-            if let Some(global_state) = data_read.get::<GlobalState>() {
-                let guild_state = global_state.guilds.lock().await;
+    let data_read = ctx.data.read().await;
+    let Some(global_state) = data_read.get::<GlobalState>() else {
+        return Ok(());
+    };
 
-                if guild_state
-                    .set_voice_multiplier(msg.guild_id.unwrap().0 as i64, m)
-                    .await?
-                {
-                    outgoing_msg = "Voice multiplier set".to_string();
-                }
-            }
-            send_message(ctx, msg, outgoing_msg).await;
-            Ok(())
+    let reply = match global_state
+        .guilds
+        .set_voice_multiplier(guild_id.0 as i64, multiplier)
+        .await
+    {
+        Ok(()) => "Voice multiplier set".to_string(),
+        Err(e) => {
+            eprintln!("[set_voice_multiplier] db error: {e}");
+            "failed to set voice multiplier".to_string()
         }
-        Err(_) => {
-            send_message(ctx, msg, outgoing_msg).await;
-            Ok(())
-        }
-    }
+    };
+    send_message(ctx, msg, reply).await;
+    Ok(())
 }

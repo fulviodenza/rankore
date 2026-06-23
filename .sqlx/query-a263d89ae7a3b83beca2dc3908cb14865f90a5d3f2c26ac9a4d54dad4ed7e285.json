@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE guilds SET text_multiplier = $1 WHERE id = $2",
+  "query": "UPDATE users SET hasleft = true WHERE id = $1 AND guild_id = $2",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "13dfe04bb78b977528a09199e07738605599053f213fd1879738fced98aa0dd5"
+  "hash": "a263d89ae7a3b83beca2dc3908cb14865f90a5d3f2c26ac9a4d54dad4ed7e285"
 }
