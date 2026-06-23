@@ -104,6 +104,37 @@ impl EventHandler for Handler {
         }
     }
 
+    async fn guild_member_removal(&self, ctx: Context, user: serenity::model::guild::Member) {
+        if let Some(channel_id) = find_welcome_channel(&ctx, user.guild_id.0).await {
+            println!("{} left", user.user.id);
+            let _ = channel_id.say(&ctx.http, format!("Goodbye, <@{}>!", user.user.id)).await;
+            /* ONCE A GOODBYE MESSAGE WILL BE SET
+            let data_read = ctx.data.read().await;
+            if let Some(global_state) = data_read.get::<GlobalState>() {
+                let global_state = global_state.guilds.lock().await;
+                let msg = global_state
+                    .get_goodbye_msg(user.guild_id.0 as i64)
+                    .await;
+                match msg {
+                    Ok(m) => {
+                        if m.is_empty() {
+                            let goodbye_message = format!("Goodbye, <@{}>!", user.user.id);
+                            let _ = channel_id.say(&ctx.http, goodbye_message).await;
+                        } else {
+                            let goodbye_message = format!("{}, <@{}>!", m, user.user.id);
+                            let _ = channel_id.say(&ctx.http, goodbye_message).await;
+                        }
+                    }
+                    Err(_) => {
+                        let goodbye_message = format!("Goodbye, <@{}>!", user.user.id);
+                        let _ = channel_id.say(&ctx.http, goodbye_message).await;
+                    }
+                }
+            }
+            */
+        }
+    }
+
     async fn voice_state_update(
         &self,
         ctx: Context,
