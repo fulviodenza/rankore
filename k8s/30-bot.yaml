@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rankore
+  namespace: rankore
+  labels:
+    app.kubernetes.io/name: rankore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rankore
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rankore
+    spec:
+      # Uncomment if the GHCR image is private:
+      # imagePullSecrets:
+      #   - name: ghcr-pull
+      containers:
+        - name: rankore
+          image: ghcr.io/fulviodenza/rankore:latest
+          imagePullPolicy: Always
+          env:
+            - name: DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: rankore-bot
+                  key: DISCORD_TOKEN
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rankore-postgres
+                  key: DATABASE_URL
+            - name: RUST_BACKTRACE
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 15

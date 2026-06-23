@@ -196,6 +196,10 @@ async fn main() {
         }
     };
 
+    if let Err(e) = sqlx::migrate!("./migrations").run(&pool).await {
+        panic!("failed to run migrations: {e}");
+    }
+
     let token = env::var("DISCORD_TOKEN").expect("Expected a token for discord in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
