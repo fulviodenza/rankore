@@ -76,39 +76,66 @@ Keeping Whisper out of the bot process has three benefits:
 
 The bot talks HTTP to it (e.g., `POST /transcribe` with `audio/wav` body).
 
-## 3. Engine choice — sized for low-cost hardware
+## 3. Engine choice — multilingual, low-cost hardware
 
-Target: a single k3s node with 2–4 CPU cores and a few GB of free RAM, no GPU.
-This rules out anything from `medium` upward; even `small` is borderline once
-the bot, Postgres, and other workloads are on the same node.
+Required languages: English, Italian, Spanish, French. That rules out the
+`.en` whisper variants (English-only) and rules out Vosk (one model per
+language; would require loading four). The remaining choice is which size of
+the multilingual whisper model to run.
 
-### Model shortlist
+Target hardware: a single k3s node with 2–4 CPU cores and a few GB of free
+RAM, no GPU. This rules out anything from `medium` upward; even `small` is
+borderline once the bot, Postgres, and other workloads share the node.
 
-| Model | Params | RAM (Q5_0) | Disk (Q5_0) | RTF on 4×x86_64 CPU | Languages | Quality |
+### Model shortlist (multilingual only)
+
+| Model | Params | RAM (Q5_0) | Disk (Q5_0) | RTF on 4×x86_64 CPU | EN | IT/ES/FR quality |
 |---|---|---|---|---|---|---|
-| whisper.cpp `tiny.en`   | 39M  | ~75 MB  | ~30 MB  | ~0.10× | English only | usable for simple speech |
-| whisper.cpp `base.en`   | 74M  | ~140 MB | ~60 MB  | ~0.20× | English only | clearly better; recommended |
-| whisper.cpp `tiny`      | 39M  | ~75 MB  | ~30 MB  | ~0.10× | multilingual | mediocre |
-| whisper.cpp `base`      | 74M  | ~140 MB | ~60 MB  | ~0.20× | multilingual | acceptable |
-| whisper.cpp `small.en`  | 244M | ~500 MB | ~190 MB | ~0.50× | English only | great if you have headroom |
-| Vosk `small-en-us`      | —    | ~80 MB  | ~40 MB  | ~0.05× | English only | worse than whisper but very efficient |
+| whisper.cpp `tiny`   | 39M  | ~75 MB  | ~30 MB  | ~0.10× | mediocre | poor — frequent errors |
+| whisper.cpp `base`   | 74M  | ~140 MB | ~60 MB  | ~0.20× | acceptable | acceptable for clear speech; degrades with accent / background noise |
+| whisper.cpp `small`  | 244M | ~500 MB | ~190 MB | ~0.50× | good | good — large jump over `base` for non-English |
 
-RTF = real-time factor; RTF < 1.0 means faster than real time, so a single
-4-core box can keep up with one speaker.
+RTF = real-time factor (lower is faster than real time). Numbers from the
+whisper.cpp benchmarks, ggml Q5_0 quantization.
+
+The accuracy gap between `base` and `small` is significantly wider for
+Italian / Spanish / French than for English, because the training data is
+English-dominant and smaller models overfit to it. If hardware allows, `small`
+is the right starting point for a multilingual server.
 
 ### Recommendation
 
-- **English-only servers:** `whisper.cpp base.en` with Q5_0 quantization.
-  ~140 MB RAM, ~60 MB on disk, comfortably real-time on 2 CPU cores. Quality
-  is solidly better than `tiny.en` for not much more cost.
-- **Multilingual servers:** `whisper.cpp base` Q5_0. Same footprint.
-- **Sub-Raspberry-Pi-class hardware:** `tiny.en` Q5_0. Still useful.
-- **Lots of CPU headroom and English-only:** jump to `small.en` Q5_0 for
-  noticeably better accuracy. Skip anything larger; `medium` needs ~2 GB RAM
-  and an RTF around 1.0 on 4 cores, i.e. exactly real-time with no margin.
+- **Default:** `whisper.cpp small` Q5_0 multilingual. ~500 MB RAM, ~190 MB on
+  disk, RTF ~0.5 on 4 CPU cores. Real-time with margin for one speaker;
+  with multiple concurrent speakers it relies on per-user back-pressure
+  (see §10 risks).
+- **If `small` is too heavy** for the node: fall back to `base` Q5_0.
+  Expect noticeably more errors on Italian / Spanish / French, especially
+  with accents or background noise. Acceptable as a starting point; revisit
+  once you've heard it transcribe real conversations.
+- **Hard ceiling:** `medium` (~2 GB RAM, RTF ≈ 1.0 on 4 cores) is out of
+  scope for the homelab hardware budget. If `small` isn't good enough,
+  switching to `faster-whisper` with `small` (CTranslate2 backend) is the
+  cheaper next step than upsizing the model.
 
 Quantized GGML models are at https://huggingface.co/ggerganov/whisper.cpp.
-Pull the `*-q5_0.bin` variant.
+Pull `ggml-small-q5_0.bin` (or `ggml-base-q5_0.bin` as the fallback).
+
+### Language handling
+
+whisper supports two modes:
+1. **Auto-detect per utterance** — slower (~5–10% overhead) but handles a
+   guild that switches languages mid-conversation.
+2. **Pinned per session** — set `language=it` (or `es`, `fr`, `en`) when the
+   session starts. Faster and slightly more accurate.
+
+Expose this in the join command:
+- `!transcribe_join` — auto-detect (default).
+- `!transcribe_join lang=it` — pin to Italian. Same for `es`, `fr`, `en`.
+
+Reject anything outside this whitelist of four to avoid surprises; whisper
+will happily *try* any of its 99 languages but quality on the long tail at
+`small` size is unreliable.
 
 ### Engines considered and rejected
 
@@ -165,12 +192,15 @@ Two new workloads in the `rankore` namespace:
 
 - `whisper` Deployment + Service
   - image: `ghcr.io/ggerganov/whisper.cpp:server` (or a self-built thin image)
-  - PVC for the model file (~60 MB for `base.en` Q5_0) so the model isn't
+  - PVC for the model file (~190 MB for `small` Q5_0) so the model isn't
     re-downloaded on restart
-  - resources sized for `base.en` Q5_0:
-    - requests: 500m CPU / 256Mi RAM
-    - limits:   2 CPU / 512Mi RAM
-  - If you later swap to `small.en`, bump the limits to 4 CPU / 1Gi RAM.
+  - resources sized for `small` Q5_0 multilingual:
+    - requests: 1 CPU / 512Mi RAM
+    - limits:   4 CPU / 1Gi RAM
+  - Env: `WHISPER_MODEL=small` (or `base` to fall back). Language is passed
+    per request, not as deployment config.
+  - If `small` doesn't fit on the node, fall back to `base` and tighten the
+    limits to 2 CPU / 512Mi RAM.
 - The existing `rankore` Deployment gets a transcripts PVC mount and a
   `WHISPER_URL=http://whisper:9000` env var.
 
@@ -227,9 +257,13 @@ phases 4–6 are smaller polish (~1 week combined).
 - **Discord ToS / privacy law.** Mitigation: explicit consent banner,
   per-user opt-out, no raw audio retention by default, clear documentation
   of retention.
-- **Memory.** Recommended `base.en` Q5_0: ~140 MB resident. `small.en` Q5_0:
-  ~500 MB. `medium` and up are intentionally out of scope for the homelab
-  hardware budget.
+- **Memory.** Recommended `small` Q5_0 multilingual: ~500 MB resident.
+  `base` Q5_0 fallback: ~140 MB. `medium` and up are intentionally out of
+  scope for the homelab hardware budget.
+- **Non-English accuracy.** Smaller whisper models are trained on a
+  largely-English corpus; quality on Italian / Spanish / French degrades
+  faster with size reduction than English does. Validate accuracy with
+  real recordings in each target language before committing to `base`.
 - **serenity 0.11 EOL.** Newer songbird requires serenity 0.12+. If we have
   to upgrade serenity, the bulk of the bot code stays the same but the
   builder APIs and some event signatures change. Worth scoping that upgrade
@@ -240,6 +274,9 @@ phases 4–6 are smaller polish (~1 week combined).
 - Real-time captions posted into a text channel during the call.
 - Speaker diarization beyond what Discord gives us (Discord already gives us
   per-speaker streams, so this is mostly free).
-- Translation.
-- Multi-language detection per utterance (rely on whisper's `--language`
-  per session, set when joining).
+- Translation (whisper can do English-target translation; we keep it
+  separate to avoid coupling source-language quality issues to a translation
+  step).
+- Languages outside the EN / IT / ES / FR whitelist. whisper will accept
+  others but at `small` size accuracy on the long tail is unreliable, and
+  we'd rather refuse than ship bad transcripts.
