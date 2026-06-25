@@ -11,10 +11,15 @@ encryption protocol. Voice channels that require DAVE refuse the connection
 (WS close code 4017 "E2EE/DAVE protocol required"). DAVE is increasingly
 mandatory across Discord.
 
-py-cord supports voice receive on DAVE-enabled channels, so we shell out to it
-for transcription only. Discord requires one gateway connection per bot token,
-so this sidecar uses a **second Discord application** (its own bot account).
-Both bots are invited to the same server.
+**Stable py-cord can't do voice receive on DAVE channels either** — it emits a
+`RuntimeWarning: Voice reception is currently broken due to Discord's DAVE
+(End-to-End Encryption) protocol` and yields no audio. There's an active fix
+in [pycord PR #3159](https://github.com/Pycord-Development/pycord/pull/3159)
+which we pin to in `requirements.txt`.
+
+Discord requires one gateway connection per bot token, so this sidecar uses a
+**second Discord application** (its own bot account). Both bots are invited
+to the same server.
 
 ## Architecture
 

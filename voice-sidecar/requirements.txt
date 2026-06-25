@@ -1,2 +1,14 @@
-py-cord[voice]>=2.6.1,<3
+# py-cord stable does not support DAVE voice receive. Discord rolled DAVE
+# end-to-end encryption out across voice channels in 2025; stable py-cord
+# emits `RuntimeWarning: Voice reception is currently broken due to Discord's
+# DAVE (End-to-End Encryption) protocol` and yields no audio.
+#
+# Upstream fix: https://github.com/Pycord-Development/pycord/pull/3159
+# Branch:      fix/voice-rec-2
+# Pinned commit: 05cf65fa6d81567a8a4347ac961a093981554137 (2026-06-15)
+#
+# When PR #3159 merges and a stable release ships with DAVE receive,
+# switch back to a version constraint like `py-cord[voice]>=X.Y`.
+py-cord[voice] @ git+https://github.com/Pycord-Development/pycord.git@05cf65fa6d81567a8a4347ac961a093981554137
+
 aiohttp>=3.9
