@@ -46,3 +46,4 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 hound = "3.5"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+serde = { version = "1", features = ["derive"] }
