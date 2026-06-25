@@ -48,7 +48,10 @@ intents.voice_states = True
 intents.guilds = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+# help_command=None disables py-cord's built-in !help. The Rust bot owns
+# the help command for the shared "!" prefix; we only want the voice bot to
+# respond to its own transcribe_* commands.
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 # guild_id -> session dict
 # {voice_client, text_channel, file_path, language, started_at}
