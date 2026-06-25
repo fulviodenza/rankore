@@ -40,6 +40,24 @@ pub struct Data {
 
 #[tokio::main]
 async fn main() {
+    // Initialize tracing so RUST_LOG controls log output from serenity, poise,
+    // songbird, sqlx, reqwest, and our own tracing::* calls. Without this,
+    // those crates emit nothing.
+    //
+    // Sensible defaults if RUST_LOG isn't set:
+    //   info from this crate + warn from everything else.
+    // To debug voice:
+    //   RUST_LOG=warn,rankore=debug,songbird=debug,songbird::driver=trace
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,rankore=info"));
+    tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_target(true)
+        .with_ansi(false)
+        .init();
+
+    tracing::info!("starting rankore");
+
     let db_url = env::var("DATABASE_URL")
         .expect("Expected a token for database in the environment");
 

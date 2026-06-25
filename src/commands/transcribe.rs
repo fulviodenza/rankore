@@ -54,9 +54,14 @@ pub async fn transcribe_join(
         .ok_or("Songbird voice manager not initialized")?
         .clone();
 
+    tracing::info!(guild_id = %guild_id.get(), channel_id = %channel_id.get(), "transcribe_join: requesting songbird join");
     let handler_lock = match manager.join(guild_id, channel_id).await {
-        Ok(h) => h,
+        Ok(h) => {
+            tracing::info!(guild_id = %guild_id.get(), "transcribe_join: songbird join OK");
+            h
+        }
         Err(e) => {
+            tracing::error!(error = ?e, guild_id = %guild_id.get(), channel_id = %channel_id.get(), "transcribe_join: songbird join failed");
             ctx.say(format!("Failed to join voice channel: {e}")).await?;
             return Ok(());
         }
