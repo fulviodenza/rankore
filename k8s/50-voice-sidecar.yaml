@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rankore-voice
+  namespace: rankore
+  labels:
+    app.kubernetes.io/name: rankore-voice
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rankore-voice
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rankore-voice
+    spec:
+      containers:
+        - name: voice
+          image: ghcr.io/fulviodenza/rankore-voice:latest
+          imagePullPolicy: Always
+          env:
+            - name: DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: rankore-voice-bot
+                  key: DISCORD_TOKEN
+            - name: WHISPER_URL
+              value: "http://whisper:8000"
+            - name: WHISPER_MODEL
+              value: "Systran/faster-whisper-small"
+            - name: TRANSCRIPTS_DIR
+              value: "/transcripts"
+            - name: LOG_LEVEL
+              value: "INFO"
+          volumeMounts:
+            - name: transcripts
+              mountPath: /transcripts
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: transcripts
+          persistentVolumeClaim:
+            claimName: rankore-transcripts
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 15
