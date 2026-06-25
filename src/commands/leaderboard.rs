@@ -1,25 +1,17 @@
-use crate::commands::send_titled_message;
-use crate::db::users::UsersRepo;
-use crate::GlobalState;
-use serenity::framework::standard::macros::command;
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::{model::prelude::Message, prelude::Context};
+use poise::CreateReply;
+use serenity::all::CreateEmbed;
+
+use crate::{db::users::UsersRepo, Context, Error};
 
 const LEADERBOARD_LIMIT: i64 = 100;
 
-#[command]
-async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let Some(guild_id) = msg.guild_id else {
-        return Ok(());
-    };
-    let data_read = ctx.data.read().await;
-    let Some(global_state) = data_read.get::<GlobalState>() else {
-        return Ok(());
-    };
-
-    let users = match global_state
+#[poise::command(prefix_command, guild_only)]
+pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().get() as i64;
+    let users = match ctx
+        .data()
         .users
-        .get_leaderboard(guild_id.0 as i64, LEADERBOARD_LIMIT)
+        .get_leaderboard(guild_id, LEADERBOARD_LIMIT)
         .await
     {
         Ok(u) => u,
@@ -28,12 +20,14 @@ async fn leaderboard(ctx: &Context, msg: &Message, _args: Args) -> CommandResult
             return Ok(());
         }
     };
-
     let body = users
         .into_iter()
         .map(|u| format!("{}: {}\n", u.nick, u.score))
         .collect::<String>();
-
-    send_titled_message(ctx, msg, "leaderboard".to_string(), body).await;
+    let embed = CreateEmbed::new()
+        .title("leaderboard")
+        .description(if body.is_empty() { "(empty)".to_string() } else { body })
+        .colour((58, 8, 9));
+    ctx.send(CreateReply::default().embed(embed).reply(true)).await?;
     Ok(())
 }
