@@ -1,0 +1,93 @@
+# faster-whisper-server: OpenAI-compatible /v1/audio/transcriptions API.
+# CPU-only image, multilingual "small" model, ~500 MB resident, ~190 MB on disk.
+# Model is downloaded on first request and cached on the PVC below.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: whisper-models
+  namespace: rankore
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path-ssd
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper
+  namespace: rankore
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: whisper
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisper
+  namespace: rankore
+  labels:
+    app.kubernetes.io/name: whisper
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: whisper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: whisper
+    spec:
+      containers:
+        - name: whisper
+          image: fedirz/faster-whisper-server:latest-cpu
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            # Multilingual small model covers EN / IT / ES / FR.
+            - name: WHISPER__MODEL
+              value: "Systran/faster-whisper-small"
+            - name: WHISPER__INFERENCE_DEVICE
+              value: "cpu"
+            - name: WHISPER__COMPUTE_TYPE
+              value: "int8"
+            - name: HF_HOME
+              value: "/models"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 1Gi
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: whisper-models

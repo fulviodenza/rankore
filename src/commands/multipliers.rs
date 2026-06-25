@@ -1,22 +1,18 @@
-use crate::commands::send_titled_message;
-use crate::db::guilds::GuildRepo;
-use crate::GlobalState;
-use serenity::framework::standard::macros::command;
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::{model::prelude::Message, prelude::Context};
+use poise::CreateReply;
+use serenity::all::CreateEmbed;
 
-#[command]
-async fn multipliers(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let Some(guild_id) = msg.guild_id else {
-        return Ok(());
-    };
-    let data_read = ctx.data.read().await;
-    let Some(global_state) = data_read.get::<GlobalState>() else {
-        return Ok(());
-    };
-    let text = global_state.guilds.get_text_multiplier(guild_id.0 as i64).await;
-    let voice = global_state.guilds.get_voice_multiplier(guild_id.0 as i64).await;
+use crate::{db::guilds::GuildRepo, Context, Error};
+
+#[poise::command(prefix_command, guild_only)]
+pub async fn multipliers(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().get() as i64;
+    let text = ctx.data().guilds.get_text_multiplier(guild_id).await;
+    let voice = ctx.data().guilds.get_voice_multiplier(guild_id).await;
     let body = format!("text multiplier: {}\nvoice multiplier: {}", text, voice);
-    send_titled_message(ctx, msg, "multipliers".to_string(), body).await;
+    let embed = CreateEmbed::new()
+        .title("multipliers")
+        .description(body)
+        .colour((58, 8, 9));
+    ctx.send(CreateReply::default().embed(embed).reply(true)).await?;
     Ok(())
 }
