@@ -154,6 +154,14 @@ async def recording_finished(
         )
     except Exception:
         log.exception("failed to send transcript reply")
+    finally:
+        # Transcripts are ephemeral: delete the file as soon as it's been
+        # delivered (or failed to be delivered) to Discord. The sidecar mounts
+        # /transcripts as tmpfs so this is also non-recoverable from the node.
+        try:
+            file_path.unlink(missing_ok=True)
+        except Exception:
+            log.exception("failed to delete transcript file %s", file_path)
 
 
 # ---------------------------------------------------------------- commands

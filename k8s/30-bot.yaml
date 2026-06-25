@@ -1,15 +1,3 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: rankore-transcripts
-  namespace: rankore
-spec:
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-path-ssd
-  resources:
-    requests:
-      storage: 5Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,15 +35,8 @@ spec:
                 secretKeyRef:
                   name: rankore-postgres
                   key: DATABASE_URL
-            - name: WHISPER_URL
-              value: "http://whisper:8000"
-            - name: TRANSCRIPTS_DIR
-              value: "/transcripts"
             - name: RUST_BACKTRACE
               value: "1"
-          volumeMounts:
-            - name: transcripts
-              mountPath: /transcripts
           resources:
             requests:
               cpu: 100m
@@ -69,9 +50,5 @@ spec:
             readOnlyRootFilesystem: false
             capabilities:
               drop: ["ALL"]
-      volumes:
-        - name: transcripts
-          persistentVolumeClaim:
-            claimName: rankore-transcripts
       restartPolicy: Always
       terminationGracePeriodSeconds: 15

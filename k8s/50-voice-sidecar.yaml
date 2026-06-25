@@ -52,8 +52,11 @@ spec:
             capabilities:
               drop: ["ALL"]
       volumes:
+        # tmpfs — transcripts live in RAM only, vanish on pod restart, and
+        # never touch the node's disk. Privacy-friendly default.
         - name: transcripts
-          persistentVolumeClaim:
-            claimName: rankore-transcripts
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
       restartPolicy: Always
       terminationGracePeriodSeconds: 15

@@ -12,8 +12,11 @@ that Rust's `songbird` cannot connect to DAVE-required voice channels.
   done, deployed alongside as a **separate Discord bot account**.
 - **STT backend**: `whisper` (faster-whisper-server, `small` multilingual,
   EN/IT/ES/FR) — done, deployed.
-- **Shared state**: both bots mount the same `rankore-transcripts` PVC; users
-  download transcript files attached to bot replies.
+- **Transcripts are ephemeral**: the sidecar mounts `/transcripts` as a
+  tmpfs (`emptyDir` with `medium: Memory`), so files live in RAM only and
+  vanish on pod restart. After `!transcribe_leave` the bot sends the `.txt`
+  to Discord and immediately deletes the in-memory file. Nothing about the
+  call survives outside Discord's own message attachment storage.
 
 ## Why two bots, not one
 
