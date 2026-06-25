@@ -1,32 +1,29 @@
-use serenity::framework::standard::macros::command;
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::{model::prelude::Message, prelude::Context};
+use crate::{db::guilds::GuildRepo, Context, Error};
 
-use crate::commands::send_message;
-use crate::db::guilds::GuildRepo;
-use crate::GlobalState;
-
-#[command]
-#[required_permissions(ADMINISTRATOR)]
-async fn set_welcome_msg(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let Some(guild_id) = msg.guild_id else {
-        return Ok(());
-    };
-    let data_read = ctx.data.read().await;
-    let Some(global_state) = data_read.get::<GlobalState>() else {
-        return Ok(());
-    };
-    let reply = match global_state
+#[poise::command(
+    prefix_command,
+    required_permissions = "ADMINISTRATOR",
+    guild_only
+)]
+pub async fn set_welcome_msg(
+    ctx: Context<'_>,
+    #[description = "Welcome message template (use the user mention will be appended)"]
+    #[rest]
+    welcome_msg: String,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().get() as i64;
+    let reply = match ctx
+        .data()
         .guilds
-        .set_welcome_msg(guild_id.0 as i64, args.message())
+        .set_welcome_msg(guild_id, welcome_msg.trim())
         .await
     {
-        Ok(()) => "welcome message set".to_string(),
+        Ok(()) => "welcome message set",
         Err(e) => {
             eprintln!("[set_welcome_msg] db error: {e}");
-            "failed to set welcome message".to_string()
+            "failed to set welcome message"
         }
     };
-    send_message(ctx, msg, reply).await;
+    ctx.say(reply).await?;
     Ok(())
 }
