@@ -1,35 +1,29 @@
-use serenity::framework::standard::macros::command;
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::{model::prelude::Message, prelude::Context};
+use crate::{db::guilds::GuildRepo, Context, Error};
 
-use crate::commands::send_message;
-use crate::db::guilds::GuildRepo;
-use crate::GlobalState;
-
-#[command]
-#[required_permissions(ADMINISTRATOR)]
-async fn set_prefix(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let Some(guild_id) = msg.guild_id else {
-        return Ok(());
-    };
-    let new_prefix = args.clone().single_quoted::<String>().unwrap_or_default();
+#[poise::command(
+    prefix_command,
+    required_permissions = "ADMINISTRATOR",
+    guild_only
+)]
+pub async fn set_prefix(
+    ctx: Context<'_>,
+    #[description = "New prefix"]
+    #[rest]
+    new_prefix: String,
+) -> Result<(), Error> {
+    let new_prefix = new_prefix.trim().to_string();
     if new_prefix.is_empty() {
-        send_message(ctx, msg, "prefix cannot be empty".to_string()).await;
+        ctx.say("prefix cannot be empty").await?;
         return Ok(());
     }
-
-    let data_read = ctx.data.read().await;
-    let Some(global_state) = data_read.get::<GlobalState>() else {
-        return Ok(());
-    };
-
-    let reply = match global_state.guilds.set_prefix(guild_id.0 as i64, &new_prefix).await {
-        Ok(()) => "prefix updated!".to_string(),
+    let guild_id = ctx.guild_id().unwrap().get() as i64;
+    let reply = match ctx.data().guilds.set_prefix(guild_id, &new_prefix).await {
+        Ok(()) => "prefix updated!",
         Err(e) => {
             eprintln!("[set_prefix] db error: {e}");
-            "failed to update prefix".to_string()
+            "failed to update prefix"
         }
     };
-    send_message(ctx, msg, reply).await;
+    ctx.say(reply).await?;
     Ok(())
 }
