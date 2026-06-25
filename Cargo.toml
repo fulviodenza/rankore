@@ -16,16 +16,8 @@ serenity = { version = "0.12", default-features = false, features = [
     "model",
     "rustls_backend",
     "utils",
-    "voice",
 ] }
 poise = "0.6"
-songbird = { version = "0.4", default-features = false, features = [
-    "serenity",
-    "driver",
-    "rustls",
-    "receive",
-    "gateway",
-] }
 tokio = { version = "1.33", features = ["full"] }
 sqlx = { version = "0.7.4", default-features = false, features = [
     "runtime-tokio-rustls",
@@ -38,15 +30,7 @@ sqlx = { version = "0.7.4", default-features = false, features = [
     "migrate",
 ] }
 xlsxwriter = "0.6.1"
-reqwest = { version = "0.12", default-features = false, features = [
-    "rustls-tls",
-    "multipart",
-    "stream",
-    "json",
-] }
-hound = "3.5"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = [
     "fmt",

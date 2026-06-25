@@ -4,7 +4,7 @@ FROM rust:1.88-slim-bookworm AS builder
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        pkg-config libssl-dev libopus-dev cmake build-essential ca-certificates \
+        pkg-config libssl-dev build-essential ca-certificates \
         clang libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
@@ -13,13 +13,12 @@ COPY src ./src
 COPY migrations ./migrations
 COPY assets ./assets
 ENV SQLX_OFFLINE=true
-ENV OPUS_USE_PKG_CONFIG=1
 RUN cargo build --release --bin rankore
 
 FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates libssl3 libopus0 \
+        ca-certificates libssl3 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/rankore /app/rankore

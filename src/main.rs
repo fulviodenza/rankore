@@ -1,7 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     env,
-    path::PathBuf,
     sync::Arc,
 };
 
@@ -13,16 +12,12 @@ use serenity::{
     all::{ChannelType, FullEvent, GatewayIntents, GuildId},
     Client,
 };
-use songbird::SerenityInit;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Mutex;
 
 mod commands;
 mod db;
 mod services;
-mod voice;
-
-use crate::voice::session::TranscriptSession;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
@@ -32,22 +27,13 @@ pub struct Data {
     pub guilds: Arc<Guilds>,
     pub users: Arc<Users>,
     pub active_users: Arc<Mutex<HashSet<(i64, i64)>>>,
-    pub sessions: Arc<Mutex<HashMap<GuildId, TranscriptSession>>>,
-    pub whisper_url: String,
-    pub transcripts_dir: PathBuf,
-    pub http: reqwest::Client,
 }
 
 #[tokio::main]
 async fn main() {
     // Initialize tracing so RUST_LOG controls log output from serenity, poise,
-    // songbird, sqlx, reqwest, and our own tracing::* calls. Without this,
-    // those crates emit nothing.
-    //
-    // Sensible defaults if RUST_LOG isn't set:
-    //   info from this crate + warn from everything else.
-    // To debug voice:
-    //   RUST_LOG=warn,rankore=debug,songbird=debug,songbird::driver=trace
+    // sqlx, and our own tracing::* calls. Without this, those crates emit
+    // nothing.
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,rankore=info"));
     tracing_subscriber::fmt()
@@ -82,14 +68,6 @@ async fn main() {
 
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token for discord in the environment");
-    let whisper_url =
-        env::var("WHISPER_URL").unwrap_or_else(|_| "http://whisper:8000".to_string());
-    let transcripts_dir = PathBuf::from(
-        env::var("TRANSCRIPTS_DIR").unwrap_or_else(|_| "/tmp/rankore-transcripts".to_string()),
-    );
-    if let Err(e) = std::fs::create_dir_all(&transcripts_dir) {
-        eprintln!("[startup] failed to create transcripts dir: {e}");
-    }
 
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
@@ -100,8 +78,6 @@ async fn main() {
     let guilds = Guilds::new(&pool).await;
     let users = Users::new(&pool).await;
     let active_users = Arc::new(Mutex::new(HashSet::new()));
-    let sessions = Arc::new(Mutex::new(HashMap::new()));
-    let http = reqwest::Client::new();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -116,9 +92,6 @@ async fn main() {
                 commands::set_text_multiplier::set_text_multiplier(),
                 commands::multipliers::multipliers(),
                 commands::download_leaderboard::download_leaderboard(),
-                commands::transcribe::transcribe_join(),
-                commands::transcribe::transcribe_leave(),
-                commands::transcribe::transcribe_status(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
@@ -142,10 +115,6 @@ async fn main() {
                     guilds,
                     users,
                     active_users,
-                    sessions,
-                    whisper_url,
-                    transcripts_dir,
-                    http,
                 })
             })
         })
@@ -153,7 +122,6 @@ async fn main() {
 
     let mut client = Client::builder(token, intents)
         .framework(framework)
-        .register_songbird()
         .await
         .expect("Error creating client");
 
@@ -208,7 +176,7 @@ async fn event_handler(
             crate::services::message::handle_voice(ctx.clone(), data, new.clone()).await;
         }
         FullEvent::Ready { data_about_bot } => {
-            println!("{} is connected!", data_about_bot.user.name);
+            tracing::info!("{} is connected!", data_about_bot.user.name);
             init_voice_state(ctx, data).await;
         }
         _ => {}
