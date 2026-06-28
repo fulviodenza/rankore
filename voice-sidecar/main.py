@@ -12,10 +12,13 @@ Audio path:
     -> reply to the invocation channel with the file attached.
 """
 import asyncio
+import audioop
 import io
 import logging
 import os
+import re
 import sys
+import wave
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +35,19 @@ TRANSCRIPTS_DIR = Path(os.environ.get("TRANSCRIPTS_DIR", "/transcripts"))
 TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_LANGS = {"en", "it", "es", "fr"}
-HTTP_TIMEOUT = aiohttp.ClientTimeout(total=120)
+# A single user's WAV from a long call can be many minutes. Whisper-small on CPU
+# transcribes roughly 0.5–1x realtime, so a 10-min chunk can take ~10 min. We
+# disable the overall deadline and only guard against a stuck socket.
+HTTP_TIMEOUT = aiohttp.ClientTimeout(total=None, sock_read=600)
+
+# RMS-based VAD config. Split each user's WAV on silence rather than at fixed
+# offsets — pure-silence stretches never reach whisper (no hallucinated 'no, no,
+# no…' loops), and chunk boundaries fall between utterances instead of mid-word.
+VAD_WINDOW_MS = 20
+VAD_RMS_THRESHOLD = int(os.environ.get("VAD_RMS_THRESHOLD", "500"))
+VAD_MIN_SILENCE_MS = int(os.environ.get("VAD_MIN_SILENCE_MS", "700"))
+VAD_MAX_CHUNK_S = int(os.environ.get("VAD_MAX_CHUNK_S", "30"))
+VAD_MIN_CHUNK_MS = int(os.environ.get("VAD_MIN_CHUNK_MS", "300"))
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -89,6 +104,92 @@ async def transcribe_wav(
     return (payload.get("text") or "").strip()
 
 
+def chunk_wav_vad(wav_bytes: bytes) -> list[tuple[float, bytes]]:
+    """Split a WAV into per-utterance chunks using RMS-based voice activity detection.
+
+    Walks the PCM in fixed-size windows, classifies each window as speech vs
+    silence by RMS threshold, and emits a chunk for every run of speech
+    separated from the next by ≥ VAD_MIN_SILENCE_MS of silence. Long utterances
+    are force-split at VAD_MAX_CHUNK_S to keep each whisper request bounded.
+
+    Returns (offset_seconds, wav_bytes) where offset is elapsed time within the
+    source WAV. WaveSink concatenates voice packets without silence, so this
+    is elapsed speech time for this user, not wall-clock from session start.
+    """
+    chunks: list[tuple[float, bytes]] = []
+    with wave.open(io.BytesIO(wav_bytes), "rb") as src:
+        framerate = src.getframerate()
+        nchannels = src.getnchannels()
+        sampwidth = src.getsampwidth()
+        total_frames = src.getnframes()
+        if total_frames == 0:
+            return chunks
+        pcm = src.readframes(total_frames)
+
+    bytes_per_frame = nchannels * sampwidth
+    window_frames = max(1, framerate * VAD_WINDOW_MS // 1000)
+    window_bytes = window_frames * bytes_per_frame
+    if window_bytes == 0 or len(pcm) < window_bytes:
+        return chunks
+    n_windows = len(pcm) // window_bytes
+    silence_windows = max(1, VAD_MIN_SILENCE_MS // VAD_WINDOW_MS)
+    max_chunk_windows = max(1, VAD_MAX_CHUNK_S * 1000 // VAD_WINDOW_MS)
+    min_chunk_windows = max(1, VAD_MIN_CHUNK_MS // VAD_WINDOW_MS)
+
+    is_speech = [False] * n_windows
+    for i in range(n_windows):
+        win = pcm[i * window_bytes:(i + 1) * window_bytes]
+        is_speech[i] = audioop.rms(win, sampwidth) >= VAD_RMS_THRESHOLD
+
+    def emit(start_w: int, end_w: int):
+        if end_w - start_w < min_chunk_windows:
+            return
+        data = pcm[start_w * window_bytes:end_w * window_bytes]
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as out:
+            out.setnchannels(nchannels)
+            out.setsampwidth(sampwidth)
+            out.setframerate(framerate)
+            out.writeframes(data)
+        chunks.append((start_w * window_frames / framerate, buf.getvalue()))
+
+    speech_start: int | None = None
+    silent_run = 0
+    for i in range(n_windows):
+        if is_speech[i]:
+            if speech_start is None:
+                speech_start = i
+            silent_run = 0
+            if i - speech_start >= max_chunk_windows:
+                emit(speech_start, i)
+                speech_start = i
+        elif speech_start is not None:
+            silent_run += 1
+            if silent_run >= silence_windows:
+                emit(speech_start, i - silent_run + 1)
+                speech_start = None
+                silent_run = 0
+    if speech_start is not None:
+        emit(speech_start, n_windows)
+    return chunks
+
+
+# Collapse whisper-style hallucination loops like "no, no, no, no, no…".
+# A short phrase (1–4 words) repeated ≥ 4 more times is replaced with one copy.
+_REPEAT_RE = re.compile(
+    r"(\b\w+(?:[\W_]+\w+){0,3})(?:[\W_]+\1){4,}",
+    re.IGNORECASE,
+)
+
+
+def clean_repetition(text: str) -> str:
+    cleaned = _REPEAT_RE.sub(r"\1", text)
+    # Repeat once in case the substitution exposed another loop with different
+    # punctuation at the seam.
+    cleaned = _REPEAT_RE.sub(r"\1", cleaned)
+    return cleaned.strip()
+
+
 def fmt_duration(seconds: float) -> str:
     secs = max(0, int(seconds))
     h, rem = divmod(secs, 3600)
@@ -115,10 +216,33 @@ async def recording_finished(
     file_path: Path = session["file_path"]
     language: str | None = session["language"]
     started_at: datetime = session["started_at"]
-    transcripts: list[str] = []
+    voice_client = session["voice_client"]
+    members_seen: set[int] = session.get("members_seen", set())
+    # (user_id, offset_seconds, formatted_line) — sorted at the end so each
+    # user's chunks stay chronological within their own section.
+    entries: list[tuple[int, float, str]] = []
+
+    # py-cord's WaveSink may key audio_data by Member or by int depending on
+    # version — normalize to (int_id, audio) so set ops and sorted() work.
+    def _key_to_id(k) -> int:
+        return k.id if hasattr(k, "id") else int(k)
+
+    captured = [(_key_to_id(k), v) for k, v in sink.audio_data.items()]
+    captured_ids = {uid for uid, _ in captured}
+    log.info(
+        "sink captured %d user(s): %s; members observed during session: %s",
+        len(captured_ids), sorted(captured_ids), sorted(members_seen),
+    )
+    missing_audio = members_seen - captured_ids - {bot.user.id if bot.user else 0}
+    if missing_audio:
+        log.warning(
+            "members present but produced no audio (muted, PTT-silent, or "
+            "SSRC/DAVE decrypt failure): %s",
+            sorted(missing_audio),
+        )
 
     async with aiohttp.ClientSession() as http:
-        for user_id, audio in sink.audio_data.items():
+        for user_id, audio in captured:
             try:
                 user = await bot.fetch_user(user_id)
                 nick = user.display_name
@@ -126,18 +250,42 @@ async def recording_finished(
                 nick = str(user_id)
 
             wav_bytes = audio.file.getvalue()
+            log.info(
+                "user %s (%s): %d bytes of raw PCM in sink", nick, user_id, len(wav_bytes),
+            )
             if not wav_bytes:
                 continue
             try:
-                text = await transcribe_wav(http, wav_bytes, language)
-            except Exception as e:
-                log.exception("whisper failed for user %s: %s", user_id, e)
+                chunks = chunk_wav_vad(wav_bytes)
+            except Exception:
+                log.exception("VAD chunking failed for user %s", user_id)
                 continue
-            if not text:
-                continue
-            ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-            transcripts.append(f"[{ts}] @{nick}: {text}")
+            log.info(
+                "user %s (%s): %d utterance chunk(s) after VAD",
+                nick, user_id, len(chunks),
+            )
+            for chunk_offset, chunk_bytes in chunks:
+                try:
+                    text = await transcribe_wav(http, chunk_bytes, language)
+                except Exception:
+                    log.exception(
+                        "whisper failed for user %s at +%.1fs", user_id, chunk_offset
+                    )
+                    continue
+                text = clean_repetition(text)
+                if not text:
+                    log.info(
+                        "user %s: empty transcript for chunk at +%.1fs",
+                        nick, chunk_offset,
+                    )
+                    continue
+                mm, ss = divmod(int(chunk_offset), 60)
+                entries.append(
+                    (user_id, chunk_offset, f"[+{mm:02d}:{ss:02d}] @{nick}: {text}")
+                )
 
+    entries.sort(key=lambda e: (e[0], e[1]))
+    transcripts = [line for _, _, line in entries]
     if not transcripts:
         transcripts.append("(no speech detected)")
 
@@ -148,7 +296,7 @@ async def recording_finished(
         await text_channel.send(
             content=(
                 f"Recording stopped. Duration {fmt_duration(duration)}. "
-                f"{len([t for t in transcripts if not t.startswith('(no')])} line(s)."
+                f"{len(entries)} line(s)."
             ),
             file=discord.File(str(file_path)),
         )
@@ -199,12 +347,20 @@ async def transcribe_join(ctx: commands.Context, *, args: str = ""):
     )
     file_path = TRANSCRIPTS_DIR / file_name
 
+    members_seen = {m.id for m in channel.members if not m.bot}
+    log.info(
+        "transcribe_join: guild=%s channel=%s members at start: %s",
+        ctx.guild.id, channel.id, sorted(members_seen),
+    )
+
     sessions[ctx.guild.id] = {
         "voice_client": voice_client,
         "text_channel": ctx.channel,
         "file_path": file_path,
         "language": language,
         "started_at": started_at,
+        "channel_id": channel.id,
+        "members_seen": members_seen,
     }
 
     sink = WaveSink()
@@ -259,6 +415,40 @@ async def transcribe_status(ctx: commands.Context):
 @bot.event
 async def on_ready():
     log.info("voice bot ready as %s (id=%s)", bot.user, bot.user.id)
+
+
+@bot.event
+async def on_voice_state_update(
+    member: discord.Member,
+    before: discord.VoiceState,
+    after: discord.VoiceState,
+):
+    """Track who is in the recorded channel so we can diagnose missing audio.
+
+    If someone joins after start_recording, py-cord may or may not pick up
+    their SSRC depending on the DAVE key exchange. Logging join/leave here
+    plus the final sink.audio_data keys tells us who was present but produced
+    no audio (muted, push-to-talk silent, or decrypt failure).
+    """
+    if member.bot:
+        return
+    session = sessions.get(member.guild.id)
+    if session is None:
+        return
+    target_channel_id = session.get("channel_id")
+    before_id = before.channel.id if before.channel else None
+    after_id = after.channel.id if after.channel else None
+    if after_id == target_channel_id and before_id != target_channel_id:
+        session["members_seen"].add(member.id)
+        log.info(
+            "voice state: %s (%s) joined recorded channel %s",
+            member.display_name, member.id, target_channel_id,
+        )
+    elif before_id == target_channel_id and after_id != target_channel_id:
+        log.info(
+            "voice state: %s (%s) left recorded channel %s",
+            member.display_name, member.id, target_channel_id,
+        )
 
 
 @bot.event
