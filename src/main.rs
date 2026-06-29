@@ -106,6 +106,7 @@ async fn main() {
                 commands::streak::streak(),
                 commands::set_decay_rate::set_decay_rate(),
                 commands::channel_multiplier::channel_multiplier(),
+                commands::user_stats::user_stats(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
