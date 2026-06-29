@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, audit_log_channel_id) VALUES ($1, '!', '', 1, 1, $2) ON CONFLICT (id) DO UPDATE SET audit_log_channel_id = EXCLUDED.audit_log_channel_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "64cea2a85587805beaaee56033b563e69d1efd1a20e8220f015b3c8e307ee0ff"
+}

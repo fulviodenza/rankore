@@ -114,7 +114,9 @@ async fn main() {
                 commands::excluded_channels::excluded_channels(),
                 commands::anti_spam::set_min_msg_length(),
                 commands::anti_spam::set_msg_cooldown(),
+                commands::set_audit_channel::set_audit_channel(),
             ],
+            post_command: |ctx| Box::pin(services::audit::log_command(ctx)),
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
                     Box::pin(async move {
