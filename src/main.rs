@@ -107,6 +107,7 @@ async fn main() {
                 commands::set_decay_rate::set_decay_rate(),
                 commands::channel_multiplier::channel_multiplier(),
                 commands::user_stats::user_stats(),
+                commands::excluded_channels::excluded_channels(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {

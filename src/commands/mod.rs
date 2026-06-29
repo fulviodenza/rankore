@@ -1,5 +1,6 @@
 pub mod channel_multiplier;
 pub mod download_leaderboard;
+pub mod excluded_channels;
 pub mod get_prefix;
 pub mod help;
 pub mod leaderboard;
