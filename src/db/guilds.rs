@@ -55,6 +55,8 @@ pub trait GuildRepo {
     async fn set_min_msg_length(&self, guild_id: i64, len: i32) -> Result<(), Error>;
     async fn set_msg_cooldown(&self, guild_id: i64, secs: i32) -> Result<(), Error>;
     async fn get_anti_spam(&self, guild_id: i64) -> AntiSpamSettings;
+    async fn set_audit_channel(&self, guild_id: i64, channel_id: Option<i64>) -> Result<(), Error>;
+    async fn get_audit_channel(&self, guild_id: i64) -> Option<i64>;
     async fn guilds(&self) -> Result<Vec<Guild>, Error>;
 }
 
@@ -222,6 +224,35 @@ impl GuildRepo for Guilds {
             },
             _ => AntiSpamSettings::default(),
         }
+    }
+
+    async fn set_audit_channel(
+        &self,
+        guild_id: i64,
+        channel_id: Option<i64>,
+    ) -> Result<(), Error> {
+        sqlx::query!(
+            "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, audit_log_channel_id) \
+             VALUES ($1, '!', '', 1, 1, $2) \
+             ON CONFLICT (id) DO UPDATE SET audit_log_channel_id = EXCLUDED.audit_log_channel_id",
+            guild_id,
+            channel_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
+    async fn get_audit_channel(&self, guild_id: i64) -> Option<i64> {
+        sqlx::query_scalar!(
+            "SELECT audit_log_channel_id FROM guilds WHERE id = $1",
+            guild_id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .flatten()
     }
 
     async fn guilds(&self) -> Result<Vec<Guild>, Error> {
