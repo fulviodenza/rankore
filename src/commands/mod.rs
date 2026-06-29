@@ -6,6 +6,7 @@ pub mod get_prefix;
 pub mod help;
 pub mod leaderboard;
 pub mod multipliers;
+pub mod rank;
 pub mod reset_scores;
 pub mod role_thresholds;
 pub mod set_audit_channel;
