@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT channel_id, text_multiplier, voice_multiplier FROM channel_multipliers WHERE guild_id = $1 ORDER BY channel_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "text_multiplier",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "voice_multiplier",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "80a0de4810dfe98f990f097a82c7d6474a476e915b57f2253e33aaa5b588936d"
+}

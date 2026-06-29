@@ -1,6 +1,9 @@
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
 
-use crate::{db::guilds::GuildRepo, Data};
+use crate::{
+    db::{channels::ChannelsRepo, guilds::GuildRepo},
+    Data,
+};
 
 pub async fn increase_score(
     data: &Data,
@@ -8,8 +11,12 @@ pub async fn increase_score(
     nick: String,
     is_bot: bool,
     guild_id: i64,
+    channel_id: i64,
 ) {
-    let multiplier = data.guilds.get_text_multiplier(guild_id).await;
+    let multiplier = match data.channels.get_text(guild_id, channel_id).await {
+        Some(m) => m,
+        None => data.guilds.get_text_multiplier(guild_id).await,
+    };
     if let Err(e) = data.users.tx.send(crate::db::events::UserEvents::SentText(
         user_id, nick, is_bot, guild_id, multiplier,
     )) {
@@ -51,7 +58,11 @@ pub async fn handle_voice(ctx: Context, data: &Data, voice: VoiceState) {
                 .map(|m| m.display_name().to_string())
                 .unwrap_or_else(|| voice.user_id.get().to_string()),
         };
-        let multiplier = data.guilds.get_voice_multiplier(guild_id_i64).await;
+        let voice_channel_id = voice.channel_id.unwrap().get() as i64;
+        let multiplier = match data.channels.get_voice(guild_id_i64, voice_channel_id).await {
+            Some(m) => m,
+            None => data.guilds.get_voice_multiplier(guild_id_i64).await,
+        };
 
         active_users.insert(key);
         drop(active_users);
@@ -78,6 +89,7 @@ pub struct VoiceStateReady {
 pub async fn init_active_users(_ctx: Context, data: &Data, voice: VoiceStateReady) {
     let guild_id_i64 = voice.guild_id.get() as i64;
     let user_id = voice.user_id.get() as i64;
+    let channel_id = voice._channel_id.get() as i64;
     let key = (guild_id_i64, user_id);
 
     let mut active_users = data.active_users.lock().await;
@@ -87,7 +99,10 @@ pub async fn init_active_users(_ctx: Context, data: &Data, voice: VoiceStateRead
     active_users.insert(key);
     drop(active_users);
 
-    let multiplier = data.guilds.get_voice_multiplier(guild_id_i64).await;
+    let multiplier = match data.channels.get_voice(guild_id_i64, channel_id).await {
+        Some(m) => m,
+        None => data.guilds.get_voice_multiplier(guild_id_i64).await,
+    };
     let nick = voice
         .member
         .nick

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO channel_multipliers (guild_id, channel_id, text_multiplier, voice_multiplier) VALUES ($1, $2, $3, $4) ON CONFLICT (guild_id, channel_id) DO UPDATE SET text_multiplier = COALESCE(EXCLUDED.text_multiplier, channel_multipliers.text_multiplier), voice_multiplier = COALESCE(EXCLUDED.voice_multiplier, channel_multipliers.voice_multiplier)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "70dc56eb75928d04d841d04094e136383ed9c8e034201ca81aa8980eed0370a1"
+}
