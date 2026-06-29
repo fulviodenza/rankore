@@ -49,6 +49,7 @@ pub trait UsersRepo {
         limit: i64,
     ) -> Result<Vec<User>, Error>;
     async fn reset_scores(&self, guild_id: i64) -> Result<(), Error>;
+    async fn get_streak(&self, user_id: i64, guild_id: i64) -> Result<i64, Error>;
 }
 
 #[async_trait]
@@ -99,6 +100,15 @@ impl UsersRepo for Users {
                 id,
                 guild_id,
                 delta,
+            )
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query!(
+                "INSERT INTO daily_activity (user_id, guild_id, day) \
+                 VALUES ($1, $2, (NOW() AT TIME ZONE 'UTC')::date) \
+                 ON CONFLICT DO NOTHING",
+                id,
+                guild_id,
             )
             .execute(&mut *tx)
             .await?;
@@ -184,6 +194,41 @@ impl UsersRepo for Users {
             .execute(&self.pool)
             .await
             .map(|_| ())
+    }
+
+    async fn get_streak(&self, user_id: i64, guild_id: i64) -> Result<i64, Error> {
+        let days: Vec<chrono::NaiveDate> = sqlx::query_scalar!(
+            "SELECT day FROM daily_activity \
+             WHERE user_id = $1 AND guild_id = $2 \
+             ORDER BY day DESC \
+             LIMIT 365",
+            user_id,
+            guild_id,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        if days.is_empty() {
+            return Ok(0);
+        }
+        let today = chrono::Utc::now().date_naive();
+        let yesterday = today - chrono::Duration::days(1);
+        let mut expected = if days[0] == today {
+            today
+        } else if days[0] == yesterday {
+            yesterday
+        } else {
+            return Ok(0);
+        };
+        let mut streak: i64 = 0;
+        for d in days {
+            if d == expected {
+                streak += 1;
+                expected -= chrono::Duration::days(1);
+            } else if d < expected {
+                break;
+            }
+        }
+        Ok(streak)
     }
 }
 

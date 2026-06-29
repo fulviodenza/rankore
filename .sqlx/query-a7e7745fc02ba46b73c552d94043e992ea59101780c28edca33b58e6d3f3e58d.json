@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO daily_activity (user_id, guild_id, day) VALUES ($1, $2, (NOW() AT TIME ZONE 'UTC')::date) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a7e7745fc02ba46b73c552d94043e992ea59101780c28edca33b58e6d3f3e58d"
+}

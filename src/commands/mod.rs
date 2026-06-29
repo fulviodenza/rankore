@@ -7,5 +7,6 @@ pub mod reset_scores;
 pub mod role_thresholds;
 pub mod set_prefix;
 pub mod set_text_multiplier;
+pub mod streak;
 pub mod set_voice_multiplier;
 pub mod set_welcome_msg;
