@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT min_msg_length, msg_cooldown_secs FROM guilds WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "min_msg_length",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "msg_cooldown_secs",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "16183204548aaf1737a25bbb135166581bcd644aa950866c72decdc7a4d4b466"
+}

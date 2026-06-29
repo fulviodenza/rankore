@@ -1,7 +1,8 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     env,
     sync::Arc,
+    time::Instant,
 };
 
 use db::{
@@ -32,6 +33,8 @@ pub struct Data {
     pub roles: Arc<Roles>,
     pub channels: Arc<Channels>,
     pub active_users: Arc<Mutex<HashSet<(i64, i64)>>>,
+    /// (user_id, guild_id) -> last accepted message time. Anti-spam cooldown.
+    pub last_msg_at: Arc<Mutex<HashMap<(i64, i64), Instant>>>,
 }
 
 #[tokio::main]
@@ -88,6 +91,7 @@ async fn main() {
     let role_syncer = RoleSyncer::new(http.clone(), pool.clone(), roles.clone());
     let users = Users::new(&pool, role_syncer).await;
     let active_users = Arc::new(Mutex::new(HashSet::new()));
+    let last_msg_at = Arc::new(Mutex::new(HashMap::new()));
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -108,6 +112,8 @@ async fn main() {
                 commands::channel_multiplier::channel_multiplier(),
                 commands::user_stats::user_stats(),
                 commands::excluded_channels::excluded_channels(),
+                commands::anti_spam::set_min_msg_length(),
+                commands::anti_spam::set_msg_cooldown(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
@@ -134,6 +140,7 @@ async fn main() {
                     roles,
                     channels,
                     active_users,
+                    last_msg_at,
                 })
             })
         })
@@ -170,6 +177,7 @@ async fn event_handler(
                 new_message.author.bot,
                 guild_id.get() as i64,
                 new_message.channel_id.get() as i64,
+                new_message.content.chars().count(),
             )
             .await;
         }

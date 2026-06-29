@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use serenity::all::{ChannelId, Context, GuildId, Member, UserId, VoiceState};
 
 use crate::{
@@ -12,9 +14,25 @@ pub async fn increase_score(
     is_bot: bool,
     guild_id: i64,
     channel_id: i64,
+    msg_length: usize,
 ) {
     if data.channels.is_excluded(guild_id, channel_id).await {
         return;
+    }
+    let anti_spam = data.guilds.get_anti_spam(guild_id).await;
+    if msg_length < anti_spam.min_msg_length as usize {
+        return;
+    }
+    if anti_spam.cooldown_secs > 0 {
+        let now = Instant::now();
+        let cooldown = Duration::from_secs(anti_spam.cooldown_secs as u64);
+        let mut map = data.last_msg_at.lock().await;
+        if let Some(last) = map.get(&(user_id, guild_id)) {
+            if now.duration_since(*last) < cooldown {
+                return;
+            }
+        }
+        map.insert((user_id, guild_id), now);
     }
     let multiplier = match data.channels.get_text(guild_id, channel_id).await {
         Some(m) => m,

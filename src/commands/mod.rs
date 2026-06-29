@@ -1,3 +1,4 @@
+pub mod anti_spam;
 pub mod channel_multiplier;
 pub mod download_leaderboard;
 pub mod excluded_channels;

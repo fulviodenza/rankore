@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, min_msg_length) VALUES ($1, '!', '', 1, 1, $2) ON CONFLICT (id) DO UPDATE SET min_msg_length = EXCLUDED.min_msg_length",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f887c6085c233a03322c3e5c700621b8671e3d314e9b9f77039472afe5bdb431"
+}
