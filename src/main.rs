@@ -5,6 +5,7 @@ use std::{
 };
 
 use db::{
+    channels::{Channels, ChannelsRepo},
     guilds::{GuildRepo, Guilds},
     roles::{Roles, RolesRepo},
     users::{Users, UsersRepo},
@@ -29,6 +30,7 @@ pub struct Data {
     pub guilds: Arc<Guilds>,
     pub users: Arc<Users>,
     pub roles: Arc<Roles>,
+    pub channels: Arc<Channels>,
     pub active_users: Arc<Mutex<HashSet<(i64, i64)>>>,
 }
 
@@ -82,6 +84,7 @@ async fn main() {
     services::decay::spawn(pool.clone());
     let guilds = Guilds::new(&pool).await;
     let roles = Roles::new(&pool).await;
+    let channels = Channels::new(&pool).await;
     let role_syncer = RoleSyncer::new(http.clone(), pool.clone(), roles.clone());
     let users = Users::new(&pool, role_syncer).await;
     let active_users = Arc::new(Mutex::new(HashSet::new()));
@@ -102,6 +105,7 @@ async fn main() {
                 commands::role_thresholds::role_thresholds(),
                 commands::streak::streak(),
                 commands::set_decay_rate::set_decay_rate(),
+                commands::channel_multiplier::channel_multiplier(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
@@ -126,6 +130,7 @@ async fn main() {
                     guilds,
                     users,
                     roles,
+                    channels,
                     active_users,
                 })
             })
@@ -162,6 +167,7 @@ async fn event_handler(
                 new_message.author.name.clone(),
                 new_message.author.bot,
                 guild_id.get() as i64,
+                new_message.channel_id.get() as i64,
             )
             .await;
         }

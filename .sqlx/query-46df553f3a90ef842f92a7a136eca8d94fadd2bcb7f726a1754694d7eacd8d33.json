@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT text_multiplier FROM channel_multipliers WHERE guild_id = $1 AND channel_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "text_multiplier",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "46df553f3a90ef842f92a7a136eca8d94fadd2bcb7f726a1754694d7eacd8d33"
+}

@@ -1,3 +1,4 @@
+pub mod channel_multiplier;
 pub mod download_leaderboard;
 pub mod get_prefix;
 pub mod help;

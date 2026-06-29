@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM channel_multipliers WHERE guild_id = $1 AND channel_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ef9ce7617a48fec14c54af02144d07b94c4426cecae4c7b099afc9811a6e97bf"
+}
