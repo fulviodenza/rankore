@@ -99,6 +99,7 @@ async fn main() {
                 commands::multipliers::multipliers(),
                 commands::download_leaderboard::download_leaderboard(),
                 commands::role_thresholds::role_thresholds(),
+                commands::streak::streak(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
