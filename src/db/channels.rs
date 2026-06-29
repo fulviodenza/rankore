@@ -28,6 +28,10 @@ pub trait ChannelsRepo {
     async fn list(&self, guild_id: i64) -> Result<Vec<ChannelMultiplier>, Error>;
     async fn get_text(&self, guild_id: i64, channel_id: i64) -> Option<i64>;
     async fn get_voice(&self, guild_id: i64, channel_id: i64) -> Option<i64>;
+    async fn exclude(&self, guild_id: i64, channel_id: i64) -> Result<(), Error>;
+    async fn include(&self, guild_id: i64, channel_id: i64) -> Result<(), Error>;
+    async fn is_excluded(&self, guild_id: i64, channel_id: i64) -> bool;
+    async fn list_excluded(&self, guild_id: i64) -> Result<Vec<i64>, Error>;
 }
 
 #[async_trait]
@@ -117,5 +121,51 @@ impl ChannelsRepo for Channels {
         .ok()
         .flatten()
         .flatten()
+    }
+
+    async fn exclude(&self, guild_id: i64, channel_id: i64) -> Result<(), Error> {
+        sqlx::query!(
+            "INSERT INTO excluded_channels (guild_id, channel_id) VALUES ($1, $2) \
+             ON CONFLICT DO NOTHING",
+            guild_id,
+            channel_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
+    async fn include(&self, guild_id: i64, channel_id: i64) -> Result<(), Error> {
+        sqlx::query!(
+            "DELETE FROM excluded_channels WHERE guild_id = $1 AND channel_id = $2",
+            guild_id,
+            channel_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
+    async fn is_excluded(&self, guild_id: i64, channel_id: i64) -> bool {
+        sqlx::query_scalar!(
+            "SELECT EXISTS(SELECT 1 FROM excluded_channels \
+             WHERE guild_id = $1 AND channel_id = $2)",
+            guild_id,
+            channel_id,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+    }
+
+    async fn list_excluded(&self, guild_id: i64) -> Result<Vec<i64>, Error> {
+        sqlx::query_scalar!(
+            "SELECT channel_id FROM excluded_channels WHERE guild_id = $1 ORDER BY channel_id",
+            guild_id,
+        )
+        .fetch_all(&self.pool)
+        .await
     }
 }
