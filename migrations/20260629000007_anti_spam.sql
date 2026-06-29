@@ -1,0 +1,3 @@
+ALTER TABLE guilds
+    ADD COLUMN min_msg_length INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN msg_cooldown_secs INTEGER NOT NULL DEFAULT 0;

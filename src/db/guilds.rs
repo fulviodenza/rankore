@@ -22,6 +22,12 @@ pub struct Guild {
     text_multiplier: i64,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AntiSpamSettings {
+    pub min_msg_length: i32,
+    pub cooldown_secs: i32,
+}
+
 impl Default for Guild {
     fn default() -> Self {
         Self {
@@ -46,6 +52,9 @@ pub trait GuildRepo {
     async fn set_text_multiplier(&self, guild_id: i64, multiplier: i64) -> Result<(), Error>;
     async fn get_text_multiplier(&self, guild_id: i64) -> i64;
     async fn set_decay_rate(&self, guild_id: i64, pct: i32) -> Result<(), Error>;
+    async fn set_min_msg_length(&self, guild_id: i64, len: i32) -> Result<(), Error>;
+    async fn set_msg_cooldown(&self, guild_id: i64, secs: i32) -> Result<(), Error>;
+    async fn get_anti_spam(&self, guild_id: i64) -> AntiSpamSettings;
     async fn guilds(&self) -> Result<Vec<Guild>, Error>;
 }
 
@@ -165,6 +174,54 @@ impl GuildRepo for Guilds {
         .execute(&self.pool)
         .await
         .map(|_| ())
+    }
+
+    async fn set_min_msg_length(&self, guild_id: i64, len: i32) -> Result<(), Error> {
+        if len < 0 {
+            return Err(Error::Protocol("min_msg_length cannot be negative".into()));
+        }
+        sqlx::query!(
+            "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, min_msg_length) \
+             VALUES ($1, '!', '', 1, 1, $2) \
+             ON CONFLICT (id) DO UPDATE SET min_msg_length = EXCLUDED.min_msg_length",
+            guild_id,
+            len,
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
+    async fn set_msg_cooldown(&self, guild_id: i64, secs: i32) -> Result<(), Error> {
+        if secs < 0 {
+            return Err(Error::Protocol("cooldown cannot be negative".into()));
+        }
+        sqlx::query!(
+            "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, msg_cooldown_secs) \
+             VALUES ($1, '!', '', 1, 1, $2) \
+             ON CONFLICT (id) DO UPDATE SET msg_cooldown_secs = EXCLUDED.msg_cooldown_secs",
+            guild_id,
+            secs,
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
+    async fn get_anti_spam(&self, guild_id: i64) -> AntiSpamSettings {
+        match sqlx::query!(
+            "SELECT min_msg_length, msg_cooldown_secs FROM guilds WHERE id = $1",
+            guild_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        {
+            Ok(Some(r)) => AntiSpamSettings {
+                min_msg_length: r.min_msg_length,
+                cooldown_secs: r.msg_cooldown_secs,
+            },
+            _ => AntiSpamSettings::default(),
+        }
     }
 
     async fn guilds(&self) -> Result<Vec<Guild>, Error> {

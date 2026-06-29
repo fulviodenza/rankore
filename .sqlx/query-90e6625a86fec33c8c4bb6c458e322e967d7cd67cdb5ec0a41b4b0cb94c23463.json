@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, msg_cooldown_secs) VALUES ($1, '!', '', 1, 1, $2) ON CONFLICT (id) DO UPDATE SET msg_cooldown_secs = EXCLUDED.msg_cooldown_secs",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "90e6625a86fec33c8c4bb6c458e322e967d7cd67cdb5ec0a41b4b0cb94c23463"
+}
