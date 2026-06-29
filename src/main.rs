@@ -79,6 +79,7 @@ async fn main() {
         | GatewayIntents::GUILD_MEMBERS;
 
     let http = Arc::new(Http::new(&token));
+    services::decay::spawn(pool.clone());
     let guilds = Guilds::new(&pool).await;
     let roles = Roles::new(&pool).await;
     let role_syncer = RoleSyncer::new(http.clone(), pool.clone(), roles.clone());
@@ -100,6 +101,7 @@ async fn main() {
                 commands::download_leaderboard::download_leaderboard(),
                 commands::role_thresholds::role_thresholds(),
                 commands::streak::streak(),
+                commands::set_decay_rate::set_decay_rate(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {

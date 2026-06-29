@@ -5,6 +5,7 @@ pub mod leaderboard;
 pub mod multipliers;
 pub mod reset_scores;
 pub mod role_thresholds;
+pub mod set_decay_rate;
 pub mod set_prefix;
 pub mod set_text_multiplier;
 pub mod streak;
