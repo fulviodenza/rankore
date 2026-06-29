@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, decay_per_day_pct, last_decay_day FROM guilds WHERE decay_per_day_pct > 0",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "decay_per_day_pct",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_decay_day",
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "5efbc1b47ce2e6b4564fefbf28e2c48241cefed5e403ded94aa657d22979bac0"
+}

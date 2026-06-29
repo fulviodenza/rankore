@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM guilds",
+  "query": "SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier FROM guilds",
   "describe": {
     "columns": [
       {
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "fccb7063cbdd9b27e84fd16ddc8d7ddf5dfe37137fff153765d50ee298c6b32c"
+  "hash": "4ffe892431deafc694b27edc10b0acf8d9ecf47006cf5343764756a4e6099253"
 }

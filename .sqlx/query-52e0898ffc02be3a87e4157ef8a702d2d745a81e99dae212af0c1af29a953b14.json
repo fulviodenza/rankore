@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users SET score = GREATEST(0, FLOOR( score::double precision * power(1.0 - $1::double precision / 100.0, $2::int) )::bigint) WHERE guild_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "52e0898ffc02be3a87e4157ef8a702d2d745a81e99dae212af0c1af29a953b14"
+}

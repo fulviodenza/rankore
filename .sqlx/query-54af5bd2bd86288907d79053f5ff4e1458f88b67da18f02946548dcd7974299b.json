@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE guilds SET last_decay_day = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "54af5bd2bd86288907d79053f5ff4e1458f88b67da18f02946548dcd7974299b"
+}

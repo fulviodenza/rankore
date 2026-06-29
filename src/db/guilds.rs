@@ -45,6 +45,7 @@ pub trait GuildRepo {
     async fn get_voice_multiplier(&self, guild_id: i64) -> i64;
     async fn set_text_multiplier(&self, guild_id: i64, multiplier: i64) -> Result<(), Error>;
     async fn get_text_multiplier(&self, guild_id: i64) -> i64;
+    async fn set_decay_rate(&self, guild_id: i64, pct: i32) -> Result<(), Error>;
     async fn guilds(&self) -> Result<Vec<Guild>, Error>;
 }
 
@@ -150,9 +151,28 @@ impl GuildRepo for Guilds {
             .unwrap_or(1)
     }
 
+    async fn set_decay_rate(&self, guild_id: i64, pct: i32) -> Result<(), Error> {
+        if !(0..=100).contains(&pct) {
+            return Err(Error::Protocol("decay rate must be between 0 and 100".into()));
+        }
+        sqlx::query!(
+            "INSERT INTO guilds (id, prefix, welcome_msg, voice_multiplier, text_multiplier, decay_per_day_pct) \
+             VALUES ($1, '!', '', 1, 1, $2) \
+             ON CONFLICT (id) DO UPDATE SET decay_per_day_pct = EXCLUDED.decay_per_day_pct",
+            guild_id,
+            pct,
+        )
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+    }
+
     async fn guilds(&self) -> Result<Vec<Guild>, Error> {
-        sqlx::query_as!(Guild, "SELECT * FROM guilds")
-            .fetch_all(&self.pool)
-            .await
+        sqlx::query_as!(
+            Guild,
+            "SELECT id, prefix, welcome_msg, voice_multiplier, text_multiplier FROM guilds"
+        )
+        .fetch_all(&self.pool)
+        .await
     }
 }
