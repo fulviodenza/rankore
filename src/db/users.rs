@@ -42,6 +42,12 @@ pub trait UsersRepo {
     ) -> Result<(), Error>;
     async fn mark_left(pool: &Pool<Postgres>, id: i64, guild_id: i64) -> Result<(), Error>;
     async fn get_leaderboard(&self, guild_id: i64, limit: i64) -> Result<Vec<User>, Error>;
+    async fn get_period_leaderboard(
+        &self,
+        guild_id: i64,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: i64,
+    ) -> Result<Vec<User>, Error>;
     async fn reset_scores(&self, guild_id: i64) -> Result<(), Error>;
 }
 
@@ -69,6 +75,7 @@ impl UsersRepo for Users {
         is_bot: bool,
         delta: i64,
     ) -> Result<(), Error> {
+        let mut tx = pool.begin().await?;
         sqlx::query!(
             "INSERT INTO users (id, score, nick, is_bot, guild_id, hasleft) \
              VALUES ($1, $2, $3, $4, $5, false) \
@@ -83,9 +90,20 @@ impl UsersRepo for Users {
             is_bot,
             guild_id,
         )
-        .execute(pool)
-        .await
-        .map(|_| ())
+        .execute(&mut *tx)
+        .await?;
+        if !is_bot && delta > 0 {
+            sqlx::query!(
+                "INSERT INTO score_events (user_id, guild_id, delta) \
+                 VALUES ($1, $2, $3)",
+                id,
+                guild_id,
+                delta,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await
     }
 
     async fn mark_left(pool: &Pool<Postgres>, id: i64, guild_id: i64) -> Result<(), Error> {
@@ -117,6 +135,42 @@ impl UsersRepo for Users {
             .map(|row| User {
                 id: row.id,
                 score: row.score,
+                nick: row.nick,
+                is_bot: row.is_bot,
+                guild_id: row.guild_id,
+                has_left: row.hasleft.unwrap_or(false),
+            })
+            .collect())
+    }
+
+    async fn get_period_leaderboard(
+        &self,
+        guild_id: i64,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: i64,
+    ) -> Result<Vec<User>, Error> {
+        let rows = sqlx::query!(
+            "SELECT u.id, u.nick, u.is_bot, u.guild_id, u.hasleft, \
+                    COALESCE(SUM(e.delta), 0)::BIGINT AS \"period_score!\" \
+             FROM users u \
+             JOIN score_events e \
+               ON e.user_id = u.id AND e.guild_id = u.guild_id \
+             WHERE u.guild_id = $1 AND u.is_bot = false AND e.occurred_at >= $2 \
+             GROUP BY u.id, u.guild_id, u.nick, u.is_bot, u.hasleft \
+             ORDER BY \"period_score!\" DESC \
+             LIMIT $3",
+            guild_id,
+            since,
+            limit,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| User {
+                id: row.id,
+                score: row.period_score,
                 nick: row.nick,
                 is_bot: row.is_bot,
                 guild_id: row.guild_id,
