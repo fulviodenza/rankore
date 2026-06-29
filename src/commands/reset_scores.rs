@@ -2,6 +2,7 @@ use crate::{db::users::UsersRepo, Context, Error};
 
 #[poise::command(
     prefix_command,
+    slash_command,
     required_permissions = "ADMINISTRATOR",
     guild_only
 )]

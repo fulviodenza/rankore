@@ -5,7 +5,7 @@ use crate::{db::users::UsersRepo, Context, Error};
 
 const LEADERBOARD_LIMIT: i64 = 100;
 
-#[poise::command(prefix_command, guild_only)]
+#[poise::command(prefix_command, slash_command, guild_only)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let users = match ctx

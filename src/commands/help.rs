@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::{Context, Error};
 
-#[poise::command(prefix_command)]
+#[poise::command(prefix_command, slash_command)]
 pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     let body = fs::read_to_string("./assets/help.md")
         .unwrap_or_else(|_| "Help file not available.".to_string());

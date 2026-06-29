@@ -50,6 +50,8 @@ screen ./run.sh
 
 
 ## Commands
+All commands below work as **slash commands** (`/leaderboard`, `/help`, …) and as classic prefix commands using the server's prefix (default `!`).
+
 - `!leaderboard`: List the users and their points, from the most active to the less active;
 - `!download_leaderboard`: get a file .xlsx containing a table with all the users and related scores
 - `!set_prefix [PREFIX]`: Set the prefix for the Discord server in which the bot is running; (After this command the default `!` prefix will not be active, replaced by the one you set)

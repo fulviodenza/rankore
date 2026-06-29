@@ -6,6 +6,8 @@ This bot is currently tracking voice and text user activity into a Discord serve
  or Join the official [rankore Discord server](https://discord.gg/RezDWZwKCT)!
  
 ## Commands
+All commands are available as **slash commands** (`/leaderboard`, `/help`, …) and as classic prefix commands (`!leaderboard`, or your custom prefix).
+
 - `!leaderboard`: List the users and their points, from the most active to the less active;
 - `!download_leaderboard`: get a file .xlsx containing a table with all the users and related scores
 - `!set_prefix [PREFIX]`: Set the prefix for the Discord server in which the bot is running; (After this command the default `!` prefix will not be active, replaced by the one you set)
