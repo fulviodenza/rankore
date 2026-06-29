@@ -195,7 +195,7 @@ async fn event_handler(
                 .await
                 .filter(|s| !s.is_empty());
             let welcome_message = match template {
-                Some(m) => format!("{}, <@{}>!", m, new_member.user.id),
+                Some(m) => crate::services::welcome::render(ctx, &m, new_member).await,
                 None => format!("Welcome, <@{}>!", new_member.user.id),
             };
             if let Err(e) = channel_id.say(&ctx.http, welcome_message).await {
