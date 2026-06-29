@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO role_thresholds (guild_id, role_id, score) VALUES ($1, $2, $3) ON CONFLICT (guild_id, role_id) DO UPDATE SET score = EXCLUDED.score",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cb650fc39dfb78d30facd15c31e457f1a9b77f25d448fb2468a477cf49b5eb3c"
+}
