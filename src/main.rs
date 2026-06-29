@@ -115,6 +115,7 @@ async fn main() {
                 commands::anti_spam::set_min_msg_length(),
                 commands::anti_spam::set_msg_cooldown(),
                 commands::set_audit_channel::set_audit_channel(),
+                commands::rank::rank(),
             ],
             post_command: |ctx| Box::pin(services::audit::log_command(ctx)),
             prefix_options: poise::PrefixFrameworkOptions {
