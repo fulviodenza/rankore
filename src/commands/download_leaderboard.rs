@@ -12,8 +12,10 @@ use crate::{
 
 const LEADERBOARD_LIMIT: i64 = 10_000;
 
-#[poise::command(prefix_command, guild_only)]
+#[poise::command(prefix_command, slash_command, guild_only)]
 pub async fn download_leaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    // xlsx generation + upload can exceed the 3s slash-command ack window.
+    ctx.defer().await?;
     let guild_id = ctx.guild_id().unwrap().get() as i64;
     let users = match ctx
         .data()
