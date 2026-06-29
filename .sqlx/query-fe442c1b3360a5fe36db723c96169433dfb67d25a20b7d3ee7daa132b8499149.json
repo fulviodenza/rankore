@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.id, u.nick, u.is_bot, u.guild_id, u.hasleft, COALESCE(SUM(e.delta), 0)::BIGINT AS \"period_score!\" FROM users u JOIN score_events e ON e.user_id = u.id AND e.guild_id = u.guild_id WHERE u.guild_id = $1 AND u.is_bot = false AND e.occurred_at >= $2 GROUP BY u.id, u.guild_id, u.nick, u.is_bot, u.hasleft ORDER BY \"period_score!\" DESC LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "nick",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "is_bot",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "guild_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "hasleft",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "period_score!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "fe442c1b3360a5fe36db723c96169433dfb67d25a20b7d3ee7daa132b8499149"
+}
