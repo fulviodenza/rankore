@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ranked AS ( SELECT id, score, ROW_NUMBER() OVER (ORDER BY score DESC, id ASC) AS rnk FROM users WHERE guild_id = $1 AND is_bot = false ), events AS ( SELECT MAX(occurred_at) AS last_active, COUNT(*) AS event_count FROM score_events WHERE guild_id = $1 AND user_id = $2 ) SELECT r.score, r.rnk AS \"rnk!\", (SELECT last_active FROM events) AS last_active, (SELECT event_count FROM events) AS event_count FROM ranked r WHERE r.id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "score",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "rnk!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_active",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "event_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ca3d3a6a9d71850621cf2466cd0f7511a0cf6aa0cfba15eaa26233adebba140b"
+}

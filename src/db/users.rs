@@ -50,6 +50,19 @@ pub trait UsersRepo {
     ) -> Result<Vec<User>, Error>;
     async fn reset_scores(&self, guild_id: i64) -> Result<(), Error>;
     async fn get_streak(&self, user_id: i64, guild_id: i64) -> Result<i64, Error>;
+    async fn get_user_stats(
+        &self,
+        user_id: i64,
+        guild_id: i64,
+    ) -> Result<Option<UserStats>, Error>;
+}
+
+#[derive(Debug)]
+pub struct UserStats {
+    pub score: i64,
+    pub rank: i64,
+    pub last_active: Option<chrono::DateTime<chrono::Utc>>,
+    pub event_count: i64,
 }
 
 #[async_trait]
@@ -194,6 +207,40 @@ impl UsersRepo for Users {
             .execute(&self.pool)
             .await
             .map(|_| ())
+    }
+
+    async fn get_user_stats(
+        &self,
+        user_id: i64,
+        guild_id: i64,
+    ) -> Result<Option<UserStats>, Error> {
+        let row = sqlx::query!(
+            "WITH ranked AS ( \
+               SELECT id, score, \
+                      ROW_NUMBER() OVER (ORDER BY score DESC, id ASC) AS rnk \
+               FROM users \
+               WHERE guild_id = $1 AND is_bot = false \
+             ), \
+             events AS ( \
+               SELECT MAX(occurred_at) AS last_active, COUNT(*) AS event_count \
+               FROM score_events WHERE guild_id = $1 AND user_id = $2 \
+             ) \
+             SELECT r.score, r.rnk AS \"rnk!\", \
+                    (SELECT last_active FROM events) AS last_active, \
+                    (SELECT event_count FROM events) AS event_count \
+             FROM ranked r \
+             WHERE r.id = $2",
+            guild_id,
+            user_id,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| UserStats {
+            score: r.score,
+            rank: r.rnk,
+            last_active: r.last_active,
+            event_count: r.event_count.unwrap_or(0),
+        }))
     }
 
     async fn get_streak(&self, user_id: i64, guild_id: i64) -> Result<i64, Error> {

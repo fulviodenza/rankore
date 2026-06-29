@@ -10,5 +10,6 @@ pub mod set_decay_rate;
 pub mod set_prefix;
 pub mod set_text_multiplier;
 pub mod streak;
+pub mod user_stats;
 pub mod set_voice_multiplier;
 pub mod set_welcome_msg;
