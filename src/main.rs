@@ -6,12 +6,14 @@ use std::{
 
 use db::{
     guilds::{GuildRepo, Guilds},
+    roles::{Roles, RolesRepo},
     users::{Users, UsersRepo},
 };
 use serenity::{
-    all::{ChannelType, FullEvent, GatewayIntents, GuildId},
+    all::{ChannelType, FullEvent, GatewayIntents, GuildId, Http},
     Client,
 };
+use services::roles::RoleSyncer;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Mutex;
 
@@ -26,6 +28,7 @@ pub type Context<'a> = poise::Context<'a, Data, Error>;
 pub struct Data {
     pub guilds: Arc<Guilds>,
     pub users: Arc<Users>,
+    pub roles: Arc<Roles>,
     pub active_users: Arc<Mutex<HashSet<(i64, i64)>>>,
 }
 
@@ -75,8 +78,11 @@ async fn main() {
         | GatewayIntents::GUILD_VOICE_STATES
         | GatewayIntents::GUILD_MEMBERS;
 
+    let http = Arc::new(Http::new(&token));
     let guilds = Guilds::new(&pool).await;
-    let users = Users::new(&pool).await;
+    let roles = Roles::new(&pool).await;
+    let role_syncer = RoleSyncer::new(http.clone(), pool.clone(), roles.clone());
+    let users = Users::new(&pool, role_syncer).await;
     let active_users = Arc::new(Mutex::new(HashSet::new()));
 
     let framework = poise::Framework::builder()
@@ -92,6 +98,7 @@ async fn main() {
                 commands::set_text_multiplier::set_text_multiplier(),
                 commands::multipliers::multipliers(),
                 commands::download_leaderboard::download_leaderboard(),
+                commands::role_thresholds::role_thresholds(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 dynamic_prefix: Some(|ctx| {
@@ -115,6 +122,7 @@ async fn main() {
                 Ok(Data {
                     guilds,
                     users,
+                    roles,
                     active_users,
                 })
             })

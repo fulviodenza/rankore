@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role_id, score FROM role_thresholds WHERE guild_id = $1 ORDER BY score ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "score",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "60e91b877b75bdc34b9d48dc1ef35f4e304c50578efd091eb71aa9e69010958e"
+}

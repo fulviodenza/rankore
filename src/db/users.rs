@@ -10,10 +10,12 @@ use tokio::{
 };
 
 use super::events::{Observer, UserEvents};
+use crate::services::roles::RoleSyncer;
 
 pub struct Users {
     pub pool: Pool<Postgres>,
     pub tx: UnboundedSender<UserEvents>,
+    pub role_syncer: Arc<RoleSyncer>,
 }
 
 #[allow(dead_code)]
@@ -29,7 +31,7 @@ pub struct User {
 
 #[async_trait]
 pub trait UsersRepo {
-    async fn new(pool: &Pool<Postgres>) -> Arc<Self>;
+    async fn new(pool: &Pool<Postgres>, role_syncer: Arc<RoleSyncer>) -> Arc<Self>;
     async fn increment_score(
         pool: &Pool<Postgres>,
         id: i64,
@@ -45,11 +47,12 @@ pub trait UsersRepo {
 
 #[async_trait]
 impl UsersRepo for Users {
-    async fn new(pool: &Pool<Postgres>) -> Arc<Self> {
+    async fn new(pool: &Pool<Postgres>, role_syncer: Arc<RoleSyncer>) -> Arc<Self> {
         let (tx, rx) = mpsc::unbounded_channel::<UserEvents>();
         let users = Arc::new(Users {
             tx,
             pool: pool.clone(),
+            role_syncer,
         });
         let users_clone = Arc::clone(&users);
         tokio::spawn(async move {
@@ -151,14 +154,16 @@ impl Observer for Users {
 
                     let pool = self.pool.clone();
                     let tickers = tickers.clone();
+                    let role_syncer = self.role_syncer.clone();
                     tokio::spawn(async move {
                         loop {
                             select! {
                                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(interval)) => {
-                                    if let Err(e) = Users::increment_score(
+                                    match Users::increment_score(
                                         &pool, user_id, guild_id, &nick, is_bot, 1,
                                     ).await {
-                                        eprintln!("[voice tick] increment_score failed: {e}");
+                                        Ok(()) => role_syncer.sync(user_id, guild_id).await,
+                                        Err(e) => eprintln!("[voice tick] increment_score failed: {e}"),
                                     }
                                 }
                                 _ = &mut cancel_rx => break,
@@ -182,11 +187,13 @@ impl Observer for Users {
                     }
                 }
                 UserEvents::SentText(user_id, nick, is_bot, guild_id, delta) => {
-                    if let Err(e) =
-                        Users::increment_score(&self.pool, user_id, guild_id, &nick, is_bot, delta)
-                            .await
+                    match Users::increment_score(
+                        &self.pool, user_id, guild_id, &nick, is_bot, delta,
+                    )
+                    .await
                     {
-                        eprintln!("[SentText] increment_score failed: {e}");
+                        Ok(()) => self.role_syncer.sync(user_id, guild_id).await,
+                        Err(e) => eprintln!("[SentText] increment_score failed: {e}"),
                     }
                 }
             }
